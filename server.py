@@ -426,7 +426,31 @@ def _discover_apps():
                 exes = glob.glob(os.path.join(game_path, "*.exe"))
                 if exes:
                     apps[f"steam:{game_lower}"] = exes[0]
-    # Epic Games
+    # Epic Games - leer manifiestos para encontrar juegos en cualquier ubicacion
+    epic_manifest_dir = r"C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests"
+    if os.path.isdir(epic_manifest_dir):
+        for mf in glob.glob(os.path.join(epic_manifest_dir, "*.item")):
+            try:
+                with open(mf, "r", encoding="utf-8") as f:
+                    data = json.loads(f.read())
+                display = data.get("DisplayName", "").strip()
+                install = data.get("InstallLocation", "")
+                app_name = data.get("AppName", "")
+                if display and install and os.path.isdir(install):
+                    clean_name = display.lower().replace("\u00ae", "").replace("\u2122", "").strip()
+                    launch_exe = data.get("LaunchExecutable", "")
+                    if launch_exe:
+                        full_exe = os.path.join(install, launch_exe)
+                        if os.path.isfile(full_exe):
+                            apps[f"epic:{clean_name}"] = full_exe
+                            continue
+                    exes = glob.glob(os.path.join(install, "**", "*.exe"), recursive=True)
+                    main_exes = [e for e in exes if "unins" not in e.lower() and "crash" not in e.lower() and "redist" not in e.lower()]
+                    if main_exes:
+                        apps[f"epic:{clean_name}"] = main_exes[0]
+            except Exception:
+                continue
+    # Fallback: carpetas conocidas de Epic
     epic_dirs = [
         r"C:\Program Files\Epic Games",
         r"D:\Epic Games",
@@ -438,11 +462,14 @@ def _discover_apps():
                 if game_dir.lower() in ("launcher", "directxredist", "epic online services"):
                     continue
                 game_lower = game_dir.lower()
+                key = f"epic:{game_lower}"
+                if key in apps:
+                    continue
                 game_path = os.path.join(ed, game_dir)
                 exes = glob.glob(os.path.join(game_path, "**", "*.exe"), recursive=True)
                 main_exes = [e for e in exes if "unins" not in e.lower() and "crash" not in e.lower() and "redist" not in e.lower()]
                 if main_exes:
-                    apps[f"epic:{game_lower}"] = main_exes[0]
+                    apps[key] = main_exes[0]
     return apps
 
 DISCOVERED_APPS = _discover_apps()
