@@ -1896,9 +1896,23 @@ def _search_whatsapp_contacts(name):
 
 
 def _send_whatsapp(phone, message):
+    import urllib.request
     phone = phone.replace("+", "").replace(" ", "").replace("-", "")
-    _clipboard_write(message)
-    return f"Mensaje copiado al portapapeles. Decile al usuario que vaya al chat de WhatsApp Web y pegue con Ctrl+V. El mensaje es: \"{message}\""
+    if not phone:
+        return "No se proporcionó número de teléfono."
+    try:
+        cmd = {"action": "whatsapp_send", "phone": phone, "message": message}
+        payload = json.dumps(cmd).encode("utf-8")
+        req = urllib.request.Request(
+            "http://localhost:8080/api/browser/command",
+            data=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            json.loads(resp.read().decode("utf-8"))
+        return f"Enviando mensaje por WhatsApp al {phone}. Se abrirá el chat en WhatsApp Web y se enviará automáticamente."
+    except Exception as e:
+        return f"Error al enviar WhatsApp: {e}"
 
 
 def _get_discord_headers():

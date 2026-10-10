@@ -126,6 +126,9 @@ async function executeCommand(cmd) {
     } else if (cmd.action === 'media_control') {
       await handleMediaControl(cmd.command, cmd.tabId);
 
+    } else if (cmd.action === 'whatsapp_send') {
+      await handleWhatsAppSend(cmd.phone, cmd.message);
+
     } else if (cmd.action === 'whatsapp_call') {
       await handleWhatsAppCall(cmd.phone, cmd.callType || 'audio');
 
@@ -197,6 +200,88 @@ async function handleMediaControl(command, specificTabId) {
       } catch(e2) {}
     }
   }
+}
+
+// WhatsApp send message handler
+async function handleWhatsAppSend(phone, message) {
+  const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+  const encodedMsg = encodeURIComponent(message);
+  const waUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMsg}`;
+
+  await logToServer('whatsapp_send_start', { phone: cleanPhone, messageLen: message.length });
+
+  const tabs = await chrome.tabs.query({});
+  let waTab = tabs.find(t => t.url && t.url.includes('web.whatsapp.com'));
+  let needsFullLoad = false;
+
+  if (waTab) {
+    await chrome.tabs.update(waTab.id, { active: true });
+    await chrome.windows.update(waTab.windowId, { focused: true });
+    await chrome.scripting.executeScript({
+      target: { tabId: waTab.id },
+      func: (url) => { window.location.href = url; },
+      args: [waUrl]
+    });
+  } else {
+    waTab = await chrome.tabs.create({ url: waUrl });
+    needsFullLoad = true;
+  }
+
+  const tabId = waTab.id;
+  const initialWait = needsFullLoad ? 12000 : 8000;
+  let attempts = 0;
+
+  const findAndClickSend = async () => {
+    attempts++;
+    if (attempts > 25) {
+      await logToServer('whatsapp_send_timeout', { attempts });
+      return;
+    }
+
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          // Check if message box has content and send button is available
+          const sendBtn = document.querySelector('[data-testid="send"], [aria-label="Enviar"], [aria-label="Send"]');
+          if (sendBtn) {
+            sendBtn.click();
+            return { ok: true, method: 'send-button' };
+          }
+
+          // Try finding send button by data-icon
+          const sendIcon = document.querySelector('[data-icon="send"]');
+          if (sendIcon) {
+            const btn = sendIcon.closest('button') || sendIcon.closest('[role="button"]') || sendIcon.parentElement;
+            if (btn) { btn.click(); return { ok: true, method: 'send-icon' }; }
+          }
+
+          // Check if the compose box has text (means page loaded the message)
+          const composeBox = document.querySelector('[data-testid="conversation-compose-box-input"], div[contenteditable="true"][data-tab="10"]');
+          if (composeBox && composeBox.textContent && composeBox.textContent.trim().length > 0) {
+            // Text is there but no send button found yet
+            return { ok: false, hasText: true, textLen: composeBox.textContent.length };
+          }
+
+          return { ok: false, hasText: false };
+        }
+      });
+
+      const r = results?.[0]?.result;
+      await logToServer('whatsapp_send_click', { attempt: attempts, result: r });
+
+      if (r?.ok) {
+        await logToServer('whatsapp_send_success', { attempts });
+      } else {
+        setTimeout(findAndClickSend, 2000);
+      }
+    } catch(e) {
+      await logToServer('whatsapp_send_error', { attempt: attempts, error: e.message });
+      setTimeout(findAndClickSend, 3000);
+    }
+  };
+
+  setTimeout(findAndClickSend, initialWait);
 }
 
 // WhatsApp call handler
