@@ -8,11 +8,34 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+os.environ["PYTHONIOENCODING"] = "utf-8"
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+try:
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    try:
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+
+
+def _log(msg):
+    try:
+        print(msg, flush=True)
+    except Exception:
+        try:
+            print(str(msg).encode("ascii", errors="replace").decode("ascii"), flush=True)
+        except Exception:
+            pass
 
 import memory as mem
 import brain
@@ -72,14 +95,13 @@ def api_chat():
 
     try:
         result = brain.chat(user_message, api_key)
-        print(f"[CHAT] actions={result.get('actions', [])}", flush=True)
+        _log(f"[CHAT] actions={result.get('actions', [])}")
         execute_actions(result.get("actions", []))
         return jsonify(result)
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"[CHAT ERROR] {e}", flush=True)
-        return jsonify({"error": str(e)}), 500
+        _log(f"[CHAT ERROR] {e}")
+        err_msg = str(e).encode("ascii", errors="replace").decode("ascii")
+        return jsonify({"error": err_msg}), 500
 
 
 # --- Chat History ---
@@ -739,7 +761,7 @@ def _discover_apps():
     return apps
 
 DISCOVERED_APPS = _discover_apps()
-print(f"[SERVER] Descubiertas {len(DISCOVERED_APPS)} aplicaciones instaladas", flush=True)
+_log(f"[SERVER] Descubiertas {len(DISCOVERED_APPS)} aplicaciones instaladas")
 
 APP_PATHS = {
     "chrome": CHROME_PATH or "chrome",
@@ -826,7 +848,7 @@ def api_browser_commands_get():
 def api_browser_command_post():
     global browser_commands
     data = request.json
-    print(f"[BROWSER CMD] Recibido: {data}")
+    _log(f"[BROWSER CMD] Recibido: {data}")
     browser_commands.append(data)
     return jsonify({"ok": True, "queued": len(browser_commands)})
 
@@ -854,7 +876,7 @@ def api_browser_log():
     extension_logs.append(entry)
     if len(extension_logs) > 50:
         extension_logs.pop(0)
-    print(f"[EXT-LOG] {data}", flush=True)
+    _log(f"[EXT-LOG] {data}")
     return jsonify({"ok": True})
 
 @app.route("/api/browser/logs", methods=["GET"])
@@ -885,7 +907,7 @@ def api_analyze_upload():
 
     file = request.files["file"]
     filename = file.filename or "documento"
-    print(f"[ANALYZE] Archivo: {filename}", flush=True)
+    _log(f"[ANALYZE] Archivo: {filename}")
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
     try:
@@ -926,15 +948,15 @@ def api_analyze_upload():
             return jsonify({"error": "No se pudo extraer texto del archivo. Puede estar escaneado o vacio."}), 400
 
         text = text[:120000]
-        print(f"[ANALYZE] Texto extraido: {len(text)} chars", flush=True)
+        _log(f"[ANALYZE] Texto extraido: {len(text)} chars")
 
         focus = "legal" if any(w in text.lower() for w in ["articulo", "ley ", "decreto", "jurisprudencia", "demanda", "sentencia", "codigo"]) else "general"
         if any(w in text.lower() for w in ["hipotesis", "metodologia", "abstract", "investigacion"]):
             focus = "academico"
 
-        print(f"[ANALYZE] Enviando a brain._analyze_text con focus={focus}...", flush=True)
+        _log(f"[ANALYZE] Enviando a brain._analyze_text con focus={focus}...")
         raw_result = brain._analyze_text(text, focus, "es")
-        print(f"[ANALYZE] Resultado recibido: {len(str(raw_result))} chars", flush=True)
+        _log(f"[ANALYZE] Resultado recibido: {len(str(raw_result))} chars")
 
         try:
             parsed = json.loads(raw_result)

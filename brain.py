@@ -1,14 +1,37 @@
 import sys
 import io
+import os
 import anthropic
 from datetime import datetime
 import json
-import os
 import re
 import memory as mem
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+os.environ["PYTHONIOENCODING"] = "utf-8"
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+try:
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    try:
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+
+def _log(msg):
+    try:
+        print(msg, flush=True)
+    except Exception:
+        try:
+            print(msg.encode("ascii", errors="replace").decode("ascii"), flush=True)
+        except Exception:
+            pass
 
 
 SYSTEM_PROMPT = """Eres JARVIS, el asistente personal de inteligencia artificial del usuario, inspirado en el JARVIS de Tony Stark (Iron Man).
@@ -886,11 +909,11 @@ def build_system_prompt():
 
 
 def process_tool_call(tool_name, tool_input):
-    print(f"[TOOL] {tool_name}: {tool_input}", flush=True)
+    _log(f"[TOOL] {tool_name}: {tool_input}")
     try:
         return _process_tool_call_inner(tool_name, tool_input)
     except Exception as e:
-        print(f"[TOOL ERROR] {tool_name}: {e}", flush=True)
+        _log(f"[TOOL ERROR] {tool_name}: {e}")
         return f"Error ejecutando {tool_name}: {e}"
 
 
@@ -1087,9 +1110,9 @@ def _process_tool_call_inner(tool_name, tool_input):
         return _browser_media()
 
     elif tool_name == "browser_command":
-        print(f"[BRAIN] browser_command llamado con: {tool_input}", flush=True)
+        _log(f"[BRAIN] browser_command llamado con: {tool_input}")
         result = _browser_command(tool_input)
-        print(f"[BRAIN] browser_command resultado: {result}", flush=True)
+        _log(f"[BRAIN] browser_command resultado: {result}")
         return result
 
     return "Herramienta no reconocida."
@@ -1372,7 +1395,7 @@ def _web_search(query, max_results=5):
         except Exception:
             pass
     except Exception as e:
-        print(f"[SEARCH] Error: {e}", flush=True)
+        _log(f"[SEARCH] Error: {e}")
 
     return f"No encontre resultados para: {query}"
 
@@ -1388,9 +1411,9 @@ def _search_videos(query, max_results=10):
             with DDGS() as ddgs:
                 results = list(ddgs.videos(query, max_results=max_results))
         except Exception as e:
-            print(f"[SEARCH] Video search fallback error: {e}", flush=True)
+            _log(f"[SEARCH] Video search fallback error: {e}")
     except Exception as e:
-        print(f"[SEARCH] Video search error: {e}", flush=True)
+        _log(f"[SEARCH] Video search error: {e}")
     if not results:
         return f"No encontre videos para: {query}. Podes intentar con play_youtube para buscar y reproducir directamente."
     text = f"Encontre {len(results)} videos:\n"
@@ -1470,7 +1493,7 @@ def _get_news(topic="argentina"):
         except Exception:
             pass
     except Exception as e:
-        print(f"[NEWS] Error: {e}", flush=True)
+        _log(f"[NEWS] Error: {e}")
 
     return "No encontre noticias recientes."
 
@@ -2296,7 +2319,7 @@ def _generate_image_together(api_key, prompt, width, height, filepath, filename)
 
         return json.dumps({"action": "show_image", "image_url": f"/api/images/{filename}", "prompt": prompt})
     except Exception as e:
-        print(f"[IMAGE] Together error: {e}", flush=True)
+        _log(f"[IMAGE] Together error: {e}")
         return f"Error generando imagen con Together AI: {e}"
 
 
@@ -2354,7 +2377,7 @@ def _play_youtube(query):
             _browser_command({"action": "open_or_switch", "url": url, "urlPattern": "youtube.com"})
             return json.dumps({"info": f"Abriendo video de YouTube para '{query}'"})
     except Exception as e:
-        print(f"[PLAY_YT] Error: {e}", flush=True)
+        _log(f"[PLAY_YT] Error: {e}")
     _browser_command({"action": "open_or_switch", "url": search_url, "urlPattern": "youtube.com"})
     return json.dumps({"info": f"Buscando '{query}' en YouTube"})
 
@@ -2369,7 +2392,7 @@ def _play_spotify(query):
 def _handle_media_shortcut(msg):
     """Detecta comandos SIMPLES de play/pausa y los ejecuta directamente."""
     lower = msg.lower().strip()
-    print(f"[BRAIN] Media shortcut check: '{lower}'", flush=True)
+    _log(f"[BRAIN] Media shortcut check: '{lower}'")
 
     import re
 
@@ -2384,7 +2407,7 @@ def _handle_media_shortcut(msg):
 
     if is_stop:
         result = _browser_command({"action": "media_control", "command": "pause"})
-        print(f"[BRAIN] Media shortcut: pause -> {result}", flush=True)
+        _log(f"[BRAIN] Media shortcut: pause -> {result}")
         return "Listo, le puse pausa."
 
     # SEGUNDO: si quiere reproducir algo NUEVO, dejar que el cerebro lo maneje
@@ -2404,7 +2427,7 @@ def _handle_media_shortcut(msg):
 
     if is_play:
         result = _browser_command({"action": "media_control", "command": "play"})
-        print(f"[BRAIN] Media shortcut: play -> {result}", flush=True)
+        _log(f"[BRAIN] Media shortcut: play -> {result}")
         return "Listo, le di play."
 
     return None
@@ -2510,19 +2533,19 @@ def chat(user_message, api_key):
 
     actions = []
     final_text = ""
-    print(f"[BRAIN] stop_reason={response.stop_reason}, model={used_model}", flush=True)
+    _log(f"[BRAIN] stop_reason={response.stop_reason}, model={used_model}")
 
     while response.stop_reason == "tool_use":
         tool_results = []
         for block in response.content:
             if block.type == "tool_use":
                 result = process_tool_call(block.name, block.input)
-                print(f"[BRAIN] tool={block.name} result={result[:200]}", flush=True)
+                _log(f"[BRAIN] tool={block.name} result={result[:200]}")
                 try:
                     action = json.loads(result)
                     if isinstance(action, dict) and "action" in action:
                         actions.append(action)
-                        print(f"[BRAIN] Action added: {action.get('action')}", flush=True)
+                        _log(f"[BRAIN] Action added: {action.get('action')}")
                 except (json.JSONDecodeError, TypeError):
                     pass
                 tool_results.append({
