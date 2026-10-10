@@ -2488,7 +2488,27 @@ def chat(user_message, api_key):
         mem.save_message("assistant", media_response)
         return {"text": media_response, "actions": []}
 
-    client = anthropic.Anthropic(api_key=api_key)
+    provider = mem.get_config("ai_provider", "anthropic")
+
+    if provider == "openrouter":
+        client = anthropic.Anthropic(
+            api_key=api_key,
+            base_url="https://openrouter.ai/api/v1"
+        )
+        MODELS_OR = [
+            "anthropic/claude-sonnet-4",
+            "anthropic/claude-haiku-4",
+            "anthropic/claude-3.5-sonnet",
+        ]
+    else:
+        client = anthropic.Anthropic(api_key=api_key)
+        MODELS_OR = None
+
+    MODELS_ANTHROPIC = [
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-4-5-20250929",
+        "claude-sonnet-5-5",
+    ]
 
     mem.save_message("user", user_message)
 
@@ -2498,17 +2518,14 @@ def chat(user_message, api_key):
         messages.append({"role": msg["role"], "content": msg["content"]})
 
     system_prompt = build_system_prompt()
-    MODELS = [
-        "claude-haiku-4-5-20251001",
-        "claude-sonnet-4-5-20250929",
-        "claude-sonnet-5-5",
-    ]
     saved_model = mem.get_config("model")
 
     if saved_model:
         models_to_try = [saved_model]
+    elif provider == "openrouter":
+        models_to_try = MODELS_OR
     else:
-        models_to_try = MODELS
+        models_to_try = MODELS_ANTHROPIC
 
     response = None
     used_model = None
@@ -2529,6 +2546,8 @@ def chat(user_message, api_key):
             continue
 
     if response is None:
+        if provider == "openrouter":
+            raise Exception("Ningun modelo disponible en OpenRouter. Verifica tu key en openrouter.ai/keys")
         raise Exception("Ningun modelo disponible. Verifica que tu cuenta tenga creditos en console.anthropic.com/settings/billing")
 
     actions = []

@@ -379,6 +379,19 @@ a { color: var(--primary); }
 }
 .config-btn:hover { background: rgba(255,149,0,0.2); }
 
+.provider-selector { display: flex; gap: 6px; margin-bottom: 10px; }
+.provider-btn {
+    flex: 1; padding: 8px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 0.75rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+}
+.provider-btn:hover { border-color: var(--primary); color: var(--text); }
+.provider-btn.active { background: rgba(255,149,0,0.15); border-color: var(--primary); color: var(--primary); }
+.provider-info select {
+    width: 100%; padding: 8px 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    color: var(--text); font-size: 0.8rem; border-radius: 6px; margin-bottom: 8px;
+}
+.provider-info select option { background: #1a1a1a; color: var(--text); }
+
 .config-hint { font-size: 0.68rem; color: var(--text-dim); line-height: 1.4; }
 .config-steps { font-size: 0.7rem; color: var(--text-dim); padding-left: 18px; line-height: 1.8; }
 .config-steps code { background: rgba(255,149,0,0.1); padding: 1px 6px; border-radius: 3px; color: var(--primary); }

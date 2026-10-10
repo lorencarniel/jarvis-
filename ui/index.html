@@ -177,15 +177,40 @@
         <div class="tab-content" id="tab-config">
             <div class="config-layout">
                 <div class="info-card">
-                    <h3>API KEY DE CLAUDE</h3>
+                    <h3>PROVEEDOR DE IA</h3>
                     <div class="config-area">
-                        <label>Tu API Key de Anthropic</label>
-                        <input type="text" id="api-key" placeholder="sk-ant-api03-...">
-                        <div style="display:flex;gap:8px;">
+                        <label>Proveedor</label>
+                        <div class="provider-selector" id="provider-selector">
+                            <button class="provider-btn active" data-provider="anthropic">Anthropic (Directo)</button>
+                            <button class="provider-btn" data-provider="openrouter">OpenRouter</button>
+                        </div>
+                        <div id="provider-anthropic-info" class="provider-info">
+                            <label>API Key de Anthropic</label>
+                            <input type="text" id="api-key" placeholder="sk-ant-api03-...">
+                            <p class="config-hint">Obtene tu key en <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></p>
+                        </div>
+                        <div id="provider-openrouter-info" class="provider-info" style="display:none;">
+                            <label>API Key de OpenRouter</label>
+                            <input type="text" id="api-key-openrouter" placeholder="sk-or-v1-...">
+                            <p class="config-hint">Obtene tu key en <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></p>
+                            <label>Modelo (opcional)</label>
+                            <select id="openrouter-model">
+                                <option value="">Auto (mejor disponible)</option>
+                                <option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option>
+                                <option value="anthropic/claude-haiku-4">Claude Haiku 4</option>
+                                <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                                <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku</option>
+                                <option value="google/gemini-2.5-flash-preview">Gemini 2.5 Flash</option>
+                                <option value="openai/gpt-4o">GPT-4o</option>
+                                <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                                <option value="deepseek/deepseek-chat-v3-0324">DeepSeek V3</option>
+                                <option value="meta-llama/llama-4-maverick">Llama 4 Maverick</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:8px;">
                             <button class="config-btn" id="save-key-btn">Guardar y verificar</button>
                             <button class="config-btn" id="change-key-btn" style="border-color:var(--warning);color:var(--warning);">Cambiar key</button>
                         </div>
-                        <p class="config-hint">Obtene tu key en <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></p>
                         <div id="key-status"></div>
                     </div>
                 </div>

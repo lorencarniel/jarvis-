@@ -156,8 +156,11 @@ def api_tts_voices():
 @app.route("/api/config", methods=["GET"])
 def api_get_config():
     api_key = mem.get_config("api_key", "")
+    provider = mem.get_config("ai_provider", "anthropic")
     return jsonify({
         "has_api_key": bool(api_key),
+        "ai_provider": provider,
+        "ai_model": mem.get_config("model", ""),
         "gmail_configured": gmail.is_configured(),
         "gmail_authenticated": gmail.is_authenticated(),
         "memory_count": len(mem.get_memories()),
@@ -469,10 +472,15 @@ def api_set_together_key():
 def api_set_key():
     data = request.json
     key = data.get("key", "").strip()
+    provider = data.get("provider", "anthropic").strip()
+    model = data.get("model", "").strip()
     if len(key) < 10:
         return jsonify({"error": "La key es muy corta"}), 400
+    if provider not in ("anthropic", "openrouter"):
+        return jsonify({"error": "Proveedor invalido"}), 400
     mem.set_config("api_key", key)
-    mem.set_config("model", "")
+    mem.set_config("ai_provider", provider)
+    mem.set_config("model", model)
     return jsonify({"success": True})
 
 
@@ -480,15 +488,29 @@ def api_set_key():
 def api_test_key():
     import anthropic as anth
     api_key = mem.get_config("api_key", "")
+    provider = mem.get_config("ai_provider", "anthropic")
     if not api_key:
         return jsonify({"error": "No hay API key guardada"}), 400
 
-    client = anth.Anthropic(api_key=api_key)
-    models = [
-        "claude-haiku-4-5-20251001",
-        "claude-sonnet-4-5-20250929",
-        "claude-sonnet-5-5",
-    ]
+    if provider == "openrouter":
+        client = anth.Anthropic(
+            api_key=api_key,
+            base_url="https://openrouter.ai/api/v1"
+        )
+        saved_model = mem.get_config("model", "")
+        models = [saved_model] if saved_model else [
+            "anthropic/claude-sonnet-4",
+            "anthropic/claude-haiku-4",
+            "anthropic/claude-3.5-sonnet",
+        ]
+    else:
+        client = anth.Anthropic(api_key=api_key)
+        models = [
+            "claude-haiku-4-5-20251001",
+            "claude-sonnet-4-5-20250929",
+            "claude-sonnet-5-5",
+        ]
+
     results = []
     working_model = None
     for model in models:
@@ -503,13 +525,13 @@ def api_test_key():
                 working_model = model
                 mem.set_config("model", model)
             break
-        except anth.NotFoundError as e:
-            results.append({"model": model, "status": f"404 - No encontrado"})
-        except anth.AuthenticationError as e:
-            results.append({"model": model, "status": f"401 - Key invalida"})
+        except anth.NotFoundError:
+            results.append({"model": model, "status": "404 - No encontrado"})
+        except anth.AuthenticationError:
+            results.append({"model": model, "status": "401 - Key invalida"})
             break
-        except anth.PermissionDeniedError as e:
-            results.append({"model": model, "status": f"403 - Sin permiso"})
+        except anth.PermissionDeniedError:
+            results.append({"model": model, "status": "403 - Sin permiso"})
         except anth.BadRequestError as e:
             results.append({"model": model, "status": f"400 - {e}"})
         except Exception as e:
@@ -518,6 +540,7 @@ def api_test_key():
 
     return jsonify({
         "key_prefix": api_key[:12] + "...",
+        "provider": provider,
         "results": results,
         "working_model": working_model
     })

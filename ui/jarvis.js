@@ -380,10 +380,26 @@ const JARVIS = {
 
         this.dom.saveKeyBtn.addEventListener('click', () => this.saveApiKey());
         document.getElementById('change-key-btn').addEventListener('click', () => {
-            this.dom.apiKeyInput.value = '';
-            this.dom.apiKeyInput.type = 'text';
-            this.dom.apiKeyInput.focus();
+            const provider = this.currentProvider || 'anthropic';
+            if (provider === 'openrouter') {
+                document.getElementById('api-key-openrouter').value = '';
+                document.getElementById('api-key-openrouter').focus();
+            } else {
+                this.dom.apiKeyInput.value = '';
+                this.dom.apiKeyInput.type = 'text';
+                this.dom.apiKeyInput.focus();
+            }
             this.dom.keyStatus.innerHTML = '<div class="status-err">Pega la key nueva y dale Guardar</div>';
+        });
+        document.querySelectorAll('.provider-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.provider-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const provider = btn.dataset.provider;
+                this.currentProvider = provider;
+                document.getElementById('provider-anthropic-info').style.display = provider === 'anthropic' ? '' : 'none';
+                document.getElementById('provider-openrouter-info').style.display = provider === 'openrouter' ? '' : 'none';
+            });
         });
         this.dom.gmailAuthBtn.addEventListener('click', () => this.connectGmail());
         document.getElementById('save-together-btn').addEventListener('click', () => this.saveTogetherKey());
@@ -426,13 +442,29 @@ const JARVIS = {
         try {
             const res = await fetch(`${API}/config`);
             const data = await res.json();
-            this.dom.aiStatus.textContent = data.has_api_key ? 'Claude AI' : 'Sin config';
+            const provider = data.ai_provider || 'anthropic';
+            this.currentProvider = provider;
+            const provLabel = provider === 'openrouter' ? 'OpenRouter' : 'Claude AI';
+            this.dom.aiStatus.textContent = data.has_api_key ? provLabel : 'Sin config';
             this.dom.aiStatus.className = data.has_api_key ? 'val-active' : 'val-error';
             this.dom.memCount.textContent = data.memory_count;
 
+            document.querySelectorAll('.provider-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.provider === provider);
+            });
+            document.getElementById('provider-anthropic-info').style.display = provider === 'anthropic' ? '' : 'none';
+            document.getElementById('provider-openrouter-info').style.display = provider === 'openrouter' ? '' : 'none';
+
             if (data.has_api_key) {
-                this.dom.apiKeyInput.value = '••••••••••••';
-                this.dom.keyStatus.innerHTML = '<div class="status-ok">API Key configurada</div>';
+                if (provider === 'openrouter') {
+                    document.getElementById('api-key-openrouter').value = '••••••••••••';
+                    if (data.ai_model) {
+                        document.getElementById('openrouter-model').value = data.ai_model;
+                    }
+                } else {
+                    this.dom.apiKeyInput.value = '••••••••••••';
+                }
+                this.dom.keyStatus.innerHTML = `<div class="status-ok">API Key configurada (${provLabel})</div>`;
             }
 
             this.dom.gmailStatus.innerHTML = data.gmail_configured
@@ -457,23 +489,39 @@ const JARVIS = {
     },
 
     async saveApiKey() {
-        const key = this.dom.apiKeyInput.value.trim().replace(/\s+/g, '');
-        if (!key || key === '••••••••••••' || key.length < 10) return;
-        if (key.length < 10) {
+        const provider = this.currentProvider || 'anthropic';
+        let key;
+        if (provider === 'openrouter') {
+            key = document.getElementById('api-key-openrouter').value.trim().replace(/\s+/g, '');
+        } else {
+            key = this.dom.apiKeyInput.value.trim().replace(/\s+/g, '');
+        }
+        if (!key || key === '••••••••••••' || key.length < 10) {
             this.dom.keyStatus.innerHTML = '<div class="status-err">La key es muy corta</div>';
             return;
+        }
+
+        const body = { key, provider };
+        if (provider === 'openrouter') {
+            const model = document.getElementById('openrouter-model').value;
+            if (model) body.model = model;
         }
 
         try {
             const res = await fetch(`${API}/config/api-key`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key })
+                body: JSON.stringify(body)
             });
             const data = await res.json();
             if (data.success) {
-                this.dom.keyStatus.innerHTML = '<div class="status-ok">API Key guardada. Probando conexion...</div>';
-                this.dom.apiKeyInput.value = '••••••••••••';
+                const provName = provider === 'openrouter' ? 'OpenRouter' : 'Anthropic';
+                this.dom.keyStatus.innerHTML = `<div class="status-ok">API Key de ${provName} guardada. Probando conexion...</div>`;
+                if (provider === 'openrouter') {
+                    document.getElementById('api-key-openrouter').value = '••••••••••••';
+                } else {
+                    this.dom.apiKeyInput.value = '••••••••••••';
+                }
                 this.loadConfig();
                 this.processInput('Hola Jarvis, confirma que estas funcionando');
             } else {
