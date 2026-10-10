@@ -2399,8 +2399,10 @@ def _handle_media_shortcut(msg):
     # PRIMERO: detectar comandos de PARAR/PAUSAR (tienen prioridad sobre new_content)
     stop_patterns = [
         r'\bpar[aá]\b.*\b(canci[oó]n|m[uú]sica|video|tema|eso|esto)\b',
-        r'\bpaus[aá]\b', r'\bponele pausa\b', r'\bpause\b',
+        r'\bpaus[aá]', r'\bponele pausa\b', r'\bpause\b',
+        r'\bdale pausa\b', r'\ble des pausa\b', r'\bque pare\b',
         r'\bdet[eé]n[eé]\b', r'\bpar[aá] (el|la|eso|esto)\b',
+        r'\bpar[aá] la\b', r'\bpar[aá]lo\b', r'\bfren[aá]\b',
         r'\bstop\b', r'\bsilencio\b', r'\bcall[aá]te\b',
     ]
     is_stop = any(re.search(p, lower) for p in stop_patterns)

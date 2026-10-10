@@ -1017,6 +1017,10 @@ const JARVIS = {
         this.wakeWordActive = false;
 
         if (this.conversationMode) {
+            if (this._followUpRecog) {
+                try { this._followUpRecog.abort(); } catch(e) {}
+                this._followUpRecog = null;
+            }
             setTimeout(() => {
                 console.log('[Voice] Modo conversacion: escuchando siguiente comando');
                 this.listenForFollowUp();
@@ -1066,53 +1070,61 @@ const JARVIS = {
         this.dom.statusText.textContent = 'CONVERSANDO...';
         this.setWaveAmplitude(0.4);
 
-        if (this.conversationTimer) clearTimeout(this.conversationTimer);
-        this.conversationTimer = setTimeout(() => {
-            console.log('[Conversation] Silencio de 5s, terminando conversacion');
-            try { followUpRecog.abort(); } catch(e) {}
-            this.endConversationMode();
-        }, this.conversationSilenceMs);
+        this._resetSilenceTimer();
 
         const followUpRecog = new SR();
-        followUpRecog.continuous = false;
-        followUpRecog.interimResults = false;
+        followUpRecog.continuous = true;
+        followUpRecog.interimResults = true;
         followUpRecog.lang = 'es-AR';
+        this._followUpRecog = followUpRecog;
 
         followUpRecog.onresult = (e) => {
-            if (this.conversationTimer) clearTimeout(this.conversationTimer);
-            let text = e.results[0][0].transcript;
-            text = text.replace(/^(hey\s+)?(jarvis|yarvis|jarbis|jarves|charvis|garvis|jervis|tarvis)\s*/i, '').trim();
-            console.log('[Conversation] Recibido:', text);
+            this._resetSilenceTimer();
 
-            const endPhrases = ['gracias jarvis', 'gracias yarvis', 'gracias jarbis', 'gracias', 'listo jarvis', 'nada mas', 'nada más', 'eso es todo', 'chau jarvis', 'chau'];
-            const lower = text.toLowerCase().trim();
-            if (endPhrases.some(p => lower.includes(p))) {
-                console.log('[Conversation] Frase de cierre detectada');
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+                if (!e.results[i].isFinal) continue;
+
+                let text = e.results[i][0].transcript;
+                text = text.replace(/^(hey\s+)?(jarvis|yarvis|jarbis|jarves|charvis|garvis|jervis|tarvis)\s*/i, '').trim();
+                console.log('[Conversation] Recibido:', text);
+                if (!text) continue;
+
+                if (this.conversationTimer) { clearTimeout(this.conversationTimer); this.conversationTimer = null; }
+                try { followUpRecog.abort(); } catch(ex) {}
+                this._followUpRecog = null;
+
+                const endPhrases = ['gracias jarvis', 'gracias yarvis', 'gracias jarbis', 'listo jarvis', 'nada mas', 'nada más', 'eso es todo', 'chau jarvis', 'chau'];
+                const lower = text.toLowerCase().trim();
+                if (endPhrases.some(p => lower.includes(p))) {
+                    console.log('[Conversation] Frase de cierre detectada');
+                    this.processInput(text);
+                    setTimeout(() => this.endConversationMode(), 1000);
+                    return;
+                }
+
                 this.processInput(text);
-                setTimeout(() => this.endConversationMode(), 1000);
                 return;
-            }
-
-            if (text) {
-                this.processInput(text);
             }
         };
 
         followUpRecog.onend = () => {
             if (this.conversationMode && !this.isSpeaking) {
-                if (this.conversationTimer) clearTimeout(this.conversationTimer);
-                this.endConversationMode();
+                console.log('[Conversation] Recognition ended, reiniciando...');
+                setTimeout(() => {
+                    if (this.conversationMode && !this.isSpeaking) {
+                        this.listenForFollowUp();
+                    }
+                }, 300);
             }
         };
 
         followUpRecog.onerror = (e) => {
             if (e.error === 'no-speech') {
-                console.log('[Conversation] No speech, terminando');
-                this.endConversationMode();
+                console.log('[Conversation] No speech detectado');
                 return;
             }
+            if (e.error === 'aborted') return;
             console.log('[Conversation] Error:', e.error);
-            this.endConversationMode();
         };
 
         try {
@@ -1121,6 +1133,18 @@ const JARVIS = {
             console.log('[Conversation] No se pudo iniciar mic:', e);
             this.endConversationMode();
         }
+    },
+
+    _resetSilenceTimer() {
+        if (this.conversationTimer) clearTimeout(this.conversationTimer);
+        this.conversationTimer = setTimeout(() => {
+            console.log('[Conversation] Silencio de 5s, terminando conversacion');
+            if (this._followUpRecog) {
+                try { this._followUpRecog.abort(); } catch(e) {}
+                this._followUpRecog = null;
+            }
+            this.endConversationMode();
+        }, this.conversationSilenceMs);
     },
 
     speakDirect(text) {
