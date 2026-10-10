@@ -142,6 +142,121 @@ def api_get_config():
     })
 
 
+@app.route("/api/connections", methods=["GET"])
+def api_connections():
+    api_key = mem.get_config("api_key", "")
+    ext_connected = browser_state.get("lastUpdate") is not None
+    last_update = browser_state.get("lastUpdate")
+    ext_recent = False
+    if last_update:
+        try:
+            from datetime import timedelta
+            lu = datetime.fromisoformat(last_update)
+            ext_recent = (datetime.now() - lu) < timedelta(seconds=15)
+        except Exception:
+            pass
+    return jsonify({
+        "connections": [
+            {
+                "id": "claude",
+                "name": "Claude AI",
+                "description": "Cerebro IA - Procesa todos los mensajes y comandos",
+                "category": "active",
+                "connected": bool(api_key),
+                "icon": "claude"
+            },
+            {
+                "id": "chrome",
+                "name": "Chrome",
+                "description": "Extension de navegador - Control de pestañas y media",
+                "category": "active",
+                "connected": ext_recent,
+                "icon": "chrome"
+            },
+            {
+                "id": "windows",
+                "name": "Windows",
+                "description": "Control del sistema - Apps, volumen, brillo, apagado",
+                "category": "active",
+                "connected": True,
+                "icon": "windows"
+            },
+            {
+                "id": "whatsapp",
+                "name": "WhatsApp",
+                "description": "Mensajes y llamadas via WhatsApp Web",
+                "category": "passive",
+                "connected": ext_recent,
+                "icon": "whatsapp"
+            },
+            {
+                "id": "youtube",
+                "name": "YouTube",
+                "description": "Reproduccion y control de musica y videos",
+                "category": "passive",
+                "connected": ext_recent,
+                "icon": "youtube"
+            },
+            {
+                "id": "spotify",
+                "name": "Spotify",
+                "description": "Reproduccion de musica via navegador",
+                "category": "passive",
+                "connected": ext_recent,
+                "icon": "spotify"
+            },
+            {
+                "id": "gmail",
+                "name": "Gmail",
+                "description": "Leer y enviar emails",
+                "category": "passive",
+                "connected": gmail.is_configured() and gmail.is_authenticated(),
+                "icon": "gmail"
+            },
+            {
+                "id": "together",
+                "name": "Together AI",
+                "description": "Generacion de imagenes con FLUX",
+                "category": "passive",
+                "connected": bool(mem.get_config("together_api_key")),
+                "icon": "together"
+            },
+            {
+                "id": "calendar",
+                "name": "Google Calendar",
+                "description": "Ver y gestionar eventos del calendario",
+                "category": "available",
+                "connected": bool(mem.get_config("google_calendar_url")),
+                "icon": "calendar"
+            },
+            {
+                "id": "telegram",
+                "name": "Telegram",
+                "description": "Mensajes via bot de Telegram",
+                "category": "available",
+                "connected": False,
+                "icon": "telegram"
+            },
+            {
+                "id": "notion",
+                "name": "Notion",
+                "description": "Notas y documentos en Notion",
+                "category": "available",
+                "connected": False,
+                "icon": "notion"
+            },
+            {
+                "id": "drive",
+                "name": "Google Drive",
+                "description": "Archivos y documentos en la nube",
+                "category": "available",
+                "connected": False,
+                "icon": "drive"
+            },
+        ]
+    })
+
+
 @app.route("/api/config/calendar", methods=["POST"])
 def api_set_calendar():
     data = request.json

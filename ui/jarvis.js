@@ -103,6 +103,7 @@ const JARVIS = {
                 document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
                 if (btn.dataset.tab === 'memory') this.loadMemories();
                 if (btn.dataset.tab === 'tasks') this.loadTasks();
+                if (btn.dataset.tab === 'connections') this.loadConnections();
             });
         });
 
@@ -1605,6 +1606,59 @@ const JARVIS = {
         escaped = escaped.replace(/\n/g, '<br>');
         escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
         return escaped;
+    },
+
+    connectionIcons: {
+        claude: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-1.5-1.5L13 12l-3.5-3.5L11 7l5 5-5 5z" fill="#D97706"/></svg>`,
+        chrome: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="#4285F4" stroke-width="1.5"/><circle cx="12" cy="12" r="4" fill="none" stroke="#4285F4" stroke-width="1.5"/><path d="M12 8L20 8" stroke="#EA4335" stroke-width="1.5"/><path d="M8 16L4 9" stroke="#34A853" stroke-width="1.5"/><path d="M16 16L8 16" stroke="#FBBC05" stroke-width="1.5"/></svg>`,
+        windows: `<svg viewBox="0 0 24 24"><path d="M3 5.5l7.5-1v7H3V5.5zm0 13l7.5 1v-7H3v6zm8.5 1.2L21.5 21V12.5H11.5v7.2zm0-15.4v7.2h10V3l-10 1.3z" fill="#00A4EF"/></svg>`,
+        whatsapp: `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.77.46 3.43 1.27 4.88L2 22l5.23-1.23A9.96 9.96 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm.01 18c-1.61 0-3.13-.43-4.45-1.18l-.32-.17-3.1.73.78-2.97-.2-.33A7.96 7.96 0 014 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8zm4.36-5.95c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.18-.71-.63-1.19-1.41-1.33-1.65-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.41-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.1.16 1.52.1.46-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28z" fill="#25D366"/></svg>`,
+        youtube: `<svg viewBox="0 0 24 24"><path d="M21.58 7.19a2.51 2.51 0 00-1.77-1.77C18.25 5 12 5 12 5s-6.25 0-7.81.42A2.51 2.51 0 002.42 7.19 26.37 26.37 0 002 12a26.37 26.37 0 00.42 4.81 2.51 2.51 0 001.77 1.77C5.75 19 12 19 12 19s6.25 0 7.81-.42a2.51 2.51 0 001.77-1.77A26.37 26.37 0 0022 12a26.37 26.37 0 00-.42-4.81zM10 15V9l5.2 3-5.2 3z" fill="#FF0000"/></svg>`,
+        spotify: `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.56 14.46a.62.62 0 01-.86.21c-2.34-1.43-5.29-1.76-8.77-.96a.62.62 0 11-.28-1.21c3.81-.87 7.08-.5 9.7 1.1a.63.63 0 01.21.86zm1.22-2.73a.78.78 0 01-1.07.26c-2.68-1.65-6.76-2.13-9.93-1.16a.78.78 0 11-.45-1.5c3.62-1.1 8.12-.57 11.19 1.33a.78.78 0 01.26 1.07zm.1-2.84C14.74 8.87 9.16 8.7 5.97 9.66a.94.94 0 11-.54-1.8C9.02 6.8 15.17 7 18.76 9.26a.94.94 0 01-.88 1.63z" fill="#1DB954"/></svg>`,
+        gmail: `<svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#EA4335"/></svg>`,
+        together: `<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#6366F1"/></svg>`,
+        calendar: `<svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z" fill="#4285F4"/><path d="M7 10h5v5H7z" fill="#4285F4" opacity="0.4"/></svg>`,
+        telegram: `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.97 1.25-5.56 3.69-.53.36-1 .54-1.42.53-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.74 3.98-1.73 6.63-2.87 7.97-3.44 3.8-1.58 4.58-1.85 5.09-1.86.11 0 .37.03.54.17.14.12.18.28.2.46-.01.06.01.24 0 .38z" fill="#229ED9"/></svg>`,
+        notion: `<svg viewBox="0 0 24 24"><path d="M4 4.5A2.5 2.5 0 016.5 2h8.84a2.5 2.5 0 011.77.73l2.66 2.66a2.5 2.5 0 01.73 1.77V19.5a2.5 2.5 0 01-2.5 2.5h-12A2.5 2.5 0 014 19.5v-15z" fill="none" stroke="#999" stroke-width="1.5"/><path d="M8 7h8M8 11h8M8 15h5" stroke="#999" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+        drive: `<svg viewBox="0 0 24 24"><path d="M8.31 2l4.69 8H2l4.69-8h1.62z" fill="#0066DA" transform="translate(3.5, 4)"/><path d="M14.69 2L10 10l4.69 8H20L15.31 10l4.69-8h-5.31z" fill="#00AC47" transform="translate(0, 4)"/><path d="M2 18l4.69-8H18l-4.69 8H2z" fill="#FFBA00" transform="translate(3, 0)"/></svg>`
+    },
+
+    async loadConnections() {
+        try {
+            const res = await fetch(`${API}/connections`);
+            const data = await res.json();
+            const conns = data.connections;
+
+            const active = conns.filter(c => c.category === 'active');
+            const passive = conns.filter(c => c.category === 'passive');
+            const available = conns.filter(c => c.category === 'available');
+
+            document.getElementById('conn-active').innerHTML = active.map(c => this.renderConnectionCard(c)).join('');
+            document.getElementById('conn-passive').innerHTML = passive.map(c => this.renderConnectionCard(c)).join('');
+            document.getElementById('conn-available').innerHTML = available.map(c => this.renderConnectionCard(c)).join('');
+        } catch(e) {
+            console.error('Error cargando conexiones:', e);
+        }
+    },
+
+    renderConnectionCard(conn) {
+        const icon = this.connectionIcons[conn.icon] || '';
+        const statusClass = conn.category === 'available'
+            ? (conn.connected ? 'online' : 'available-tag')
+            : (conn.connected ? 'online' : 'offline');
+        const statusText = conn.category === 'available'
+            ? (conn.connected ? 'ACTIVO' : 'DISPONIBLE')
+            : (conn.connected ? 'ONLINE' : 'OFFLINE');
+        const cardClass = conn.connected ? 'connected' : 'disconnected';
+
+        return `<div class="connection-card ${cardClass}">
+            <div class="connection-icon">${icon}</div>
+            <div class="connection-info">
+                <div class="connection-name">${this.esc(conn.name)}</div>
+                <div class="connection-desc">${this.esc(conn.description)}</div>
+            </div>
+            <div class="connection-status ${statusClass}">${statusText}</div>
+        </div>`;
     }
 };
 

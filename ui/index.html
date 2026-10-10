@@ -20,6 +20,7 @@
                     <button class="tab-btn active" data-tab="chat">Chat</button>
                     <button class="tab-btn" data-tab="memory">Memoria</button>
                     <button class="tab-btn" data-tab="tasks">Tareas</button>
+                    <button class="tab-btn" data-tab="connections">Conexiones</button>
                     <button class="tab-btn" data-tab="config">Config</button>
                 </div>
                 <div class="status-bar">
@@ -139,6 +140,36 @@
                     <button class="config-btn" id="add-task-btn">Agregar</button>
                 </div>
                 <div class="task-list" id="task-list"></div>
+            </div>
+        </div>
+
+        <!-- CONNECTIONS TAB -->
+        <div class="tab-content" id="tab-connections">
+            <div class="connections-layout">
+                <div class="connections-section">
+                    <div class="connections-section-header">
+                        <div class="section-indicator active"></div>
+                        <h3>CONEXIONES ACTIVAS</h3>
+                        <span class="section-desc">Servicios integrados y funcionando en tiempo real</span>
+                    </div>
+                    <div class="connections-grid" id="conn-active"></div>
+                </div>
+                <div class="connections-section">
+                    <div class="connections-section-header">
+                        <div class="section-indicator passive"></div>
+                        <h3>CONEXIONES PASIVAS</h3>
+                        <span class="section-desc">Se activan cuando los necesitas</span>
+                    </div>
+                    <div class="connections-grid" id="conn-passive"></div>
+                </div>
+                <div class="connections-section">
+                    <div class="connections-section-header">
+                        <div class="section-indicator available"></div>
+                        <h3>DISPONIBLES</h3>
+                        <span class="section-desc">Integraciones que se pueden agregar</span>
+                    </div>
+                    <div class="connections-grid" id="conn-available"></div>
+                </div>
             </div>
         </div>
 
