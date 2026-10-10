@@ -19,6 +19,9 @@ const JARVIS = {
     wakeWordRestartCount: 0,
     lastStateChange: 0,
     processingVideo: false,
+    conversationMode: false,
+    conversationTimer: null,
+    conversationSilenceMs: 5000,
 
     init() {
         this.cacheDom();
@@ -1005,7 +1008,6 @@ const JARVIS = {
         if (!this.processingVideo) {
             this.reactorState = 'idle';
             this.dom.arcReactor.classList.remove('speaking');
-            this.dom.statusText.textContent = 'REINICIANDO MIC...';
         }
         this.setWaveAmplitude(0);
         if (this.wakeWordRecog) {
@@ -1013,10 +1015,112 @@ const JARVIS = {
             this.wakeWordRecog = null;
         }
         this.wakeWordActive = false;
-        setTimeout(() => {
-            console.log('[Voice] Reiniciando wake word post-habla');
-            this.startWakeWord();
-        }, 500);
+
+        if (this.conversationMode) {
+            setTimeout(() => {
+                console.log('[Voice] Modo conversacion: escuchando siguiente comando');
+                this.listenForFollowUp();
+            }, 400);
+        } else {
+            if (!this.processingVideo) {
+                this.dom.statusText.textContent = 'REINICIANDO MIC...';
+            }
+            setTimeout(() => {
+                console.log('[Voice] Reiniciando wake word post-habla');
+                this.startWakeWord();
+            }, 500);
+        }
+    },
+
+    startConversationMode() {
+        this.conversationMode = true;
+        if (this.conversationTimer) clearTimeout(this.conversationTimer);
+        console.log('[Conversation] Modo conversacion activado');
+    },
+
+    endConversationMode() {
+        this.conversationMode = false;
+        if (this.conversationTimer) {
+            clearTimeout(this.conversationTimer);
+            this.conversationTimer = null;
+        }
+        console.log('[Conversation] Modo conversacion desactivado');
+        this.commandListening = false;
+        this.reactorState = 'idle';
+        this.dom.arcReactor.classList.remove('listening');
+        this.setWaveAmplitude(0);
+        this.dom.statusText.textContent = 'ESCUCHANDO "HEY JARVIS"';
+        this.playBeep();
+        setTimeout(() => this.startWakeWord(), 500);
+    },
+
+    listenForFollowUp() {
+        if (!this.conversationMode) return;
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) return;
+
+        this.commandListening = true;
+        this.lastStateChange = Date.now();
+        this.reactorState = 'listening';
+        this.dom.arcReactor.classList.add('listening');
+        this.dom.statusText.textContent = 'CONVERSANDO...';
+        this.setWaveAmplitude(0.4);
+
+        if (this.conversationTimer) clearTimeout(this.conversationTimer);
+        this.conversationTimer = setTimeout(() => {
+            console.log('[Conversation] Silencio de 5s, terminando conversacion');
+            try { followUpRecog.abort(); } catch(e) {}
+            this.endConversationMode();
+        }, this.conversationSilenceMs);
+
+        const followUpRecog = new SR();
+        followUpRecog.continuous = false;
+        followUpRecog.interimResults = false;
+        followUpRecog.lang = 'es-AR';
+
+        followUpRecog.onresult = (e) => {
+            if (this.conversationTimer) clearTimeout(this.conversationTimer);
+            let text = e.results[0][0].transcript;
+            text = text.replace(/^(hey\s+)?(jarvis|yarvis|jarbis|jarves|charvis|garvis|jervis|tarvis)\s*/i, '').trim();
+            console.log('[Conversation] Recibido:', text);
+
+            const endPhrases = ['gracias jarvis', 'gracias yarvis', 'gracias jarbis', 'gracias', 'listo jarvis', 'nada mas', 'nada más', 'eso es todo', 'chau jarvis', 'chau'];
+            const lower = text.toLowerCase().trim();
+            if (endPhrases.some(p => lower.includes(p))) {
+                console.log('[Conversation] Frase de cierre detectada');
+                this.processInput(text);
+                setTimeout(() => this.endConversationMode(), 1000);
+                return;
+            }
+
+            if (text) {
+                this.processInput(text);
+            }
+        };
+
+        followUpRecog.onend = () => {
+            if (this.conversationMode && !this.isSpeaking) {
+                if (this.conversationTimer) clearTimeout(this.conversationTimer);
+                this.endConversationMode();
+            }
+        };
+
+        followUpRecog.onerror = (e) => {
+            if (e.error === 'no-speech') {
+                console.log('[Conversation] No speech, terminando');
+                this.endConversationMode();
+                return;
+            }
+            console.log('[Conversation] Error:', e.error);
+            this.endConversationMode();
+        };
+
+        try {
+            followUpRecog.start();
+        } catch(e) {
+            console.log('[Conversation] No se pudo iniciar mic:', e);
+            this.endConversationMode();
+        }
     },
 
     speakDirect(text) {
@@ -1401,6 +1505,10 @@ const JARVIS = {
             return;
         }
 
+        const endPhrases = ['gracias jarvis', 'gracias yarvis', 'gracias jarbis', 'gracias', 'listo jarvis', 'nada mas', 'nada más', 'eso es todo', 'chau jarvis', 'chau'];
+        const lowerText = text.toLowerCase().trim();
+        const isEndPhrase = this.conversationMode && endPhrases.some(p => lowerText.includes(p));
+
         this.addMessage('user', text);
         this.addTyping();
         this.reactorState = 'thinking'; this.dom.arcReactor.classList.add('thinking');
@@ -1424,6 +1532,10 @@ const JARVIS = {
                 this.speak(data.error);
             } else {
                 this.addMessage('jarvis', data.text, data.actions);
+                if (isEndPhrase) {
+                    this.conversationMode = false;
+                    if (this.conversationTimer) { clearTimeout(this.conversationTimer); this.conversationTimer = null; }
+                }
                 this.speak(data.text);
                 this.loadConfig();
             }
@@ -1571,6 +1683,8 @@ const JARVIS = {
         }
         this.wakeWordActive = false;
 
+        this.startConversationMode();
+
         this.reactorState = 'listening'; this.dom.arcReactor.classList.add('listening');
         this.dom.statusText.textContent = 'ESCUCHANDO COMANDO...';
         this.setWaveAmplitude(0.5);
@@ -1594,7 +1708,7 @@ const JARVIS = {
             this.commandListening = false;
             this.reactorState = 'idle'; this.dom.arcReactor.classList.remove('listening');
             this.setWaveAmplitude(0);
-            if (!this.isSpeaking) {
+            if (!this.isSpeaking && !this.conversationMode) {
                 if (!this.processingVideo) this.dom.statusText.textContent = 'ESCUCHANDO "HEY JARVIS"';
                 setTimeout(() => this.startWakeWord(), 500);
             }
@@ -1604,7 +1718,7 @@ const JARVIS = {
             this.commandListening = false;
             this.reactorState = 'idle'; this.dom.arcReactor.classList.remove('listening');
             this.setWaveAmplitude(0);
-            if (!this.isSpeaking) {
+            if (!this.isSpeaking && !this.conversationMode) {
                 if (!this.processingVideo) this.dom.statusText.textContent = 'ESCUCHANDO "HEY JARVIS"';
                 setTimeout(() => this.startWakeWord(), 500);
             }
