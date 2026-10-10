@@ -129,6 +129,9 @@ async function executeCommand(cmd) {
     } else if (cmd.action === 'whatsapp_send') {
       await handleWhatsAppSend(cmd.phone, cmd.message);
 
+    } else if (cmd.action === 'whatsapp_read') {
+      await handleWhatsAppRead(cmd.count || 5);
+
     } else if (cmd.action === 'whatsapp_call') {
       await handleWhatsAppCall(cmd.phone, cmd.callType || 'audio');
 
@@ -200,6 +203,112 @@ async function handleMediaControl(command, specificTabId) {
       } catch(e2) {}
     }
   }
+}
+
+// WhatsApp read messages handler
+async function handleWhatsAppRead(count) {
+  await logToServer('whatsapp_read_start', { count });
+
+  const tabs = await chrome.tabs.query({});
+  let waTab = tabs.find(t => t.url && t.url.includes('web.whatsapp.com'));
+
+  if (!waTab) {
+    waTab = await chrome.tabs.create({ url: 'https://web.whatsapp.com' });
+    await new Promise(r => setTimeout(r, 10000));
+  } else {
+    await chrome.tabs.update(waTab.id, { active: true });
+    await chrome.windows.update(waTab.windowId, { focused: true });
+  }
+
+  const tabId = waTab.id;
+
+  const readMessages = async (attempt) => {
+    if (attempt > 10) {
+      await logToServer('whatsapp_read_timeout', {});
+      return;
+    }
+
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: (maxCount) => {
+          const messages = [];
+
+          // Find unread chat indicators
+          const unreadBadges = document.querySelectorAll('[data-testid="icon-unread-count"], span[aria-label*="no le"]');
+
+          // Read messages from the currently open chat
+          const msgContainers = document.querySelectorAll('[data-testid="msg-container"]');
+          const recent = [...msgContainers].slice(-maxCount);
+
+          for (const container of recent) {
+            const incoming = container.querySelector('[data-testid="msg-text"]') || container.querySelector('.message-in .copyable-text');
+            if (!incoming) continue;
+
+            const textEl = container.querySelector('[data-testid="msg-text"] span, .selectable-text span');
+            const text = textEl ? textEl.textContent : '';
+            if (!text) continue;
+
+            const metaEl = container.querySelector('[data-testid="msg-meta"]') || container.querySelector('.message-time');
+            const time = metaEl ? metaEl.textContent : '';
+
+            const isIncoming = !!container.querySelector('.message-in');
+            const prefix = isIncoming ? 'Recibido' : 'Enviado';
+
+            messages.push(`[${time}] ${prefix}: ${text}`);
+          }
+
+          // Get chat name
+          const chatHeader = document.querySelector('header [data-testid="conversation-info-header-chat-title"] span, header span[dir="auto"][title]');
+          const chatName = chatHeader ? (chatHeader.getAttribute('title') || chatHeader.textContent) : 'Chat actual';
+
+          // Get list of chats with unread messages
+          const unreadChats = [];
+          const chatListItems = document.querySelectorAll('[data-testid="cell-frame-container"]');
+          for (const item of chatListItems) {
+            const badge = item.querySelector('[data-testid="icon-unread-count"]');
+            if (!badge) continue;
+            const nameEl = item.querySelector('span[dir="auto"][title]') || item.querySelector('span[dir="auto"]');
+            const name = nameEl ? (nameEl.getAttribute('title') || nameEl.textContent) : '?';
+            const countText = badge.textContent || '1';
+            unreadChats.push(`${name} (${countText} nuevos)`);
+          }
+
+          return { messages, chatName, unreadChats };
+        },
+        args: [count]
+      });
+
+      const data = results?.[0]?.result;
+      await logToServer('whatsapp_read_result', { chatName: data?.chatName, msgCount: data?.messages?.length, unreadChats: data?.unreadChats?.length });
+
+      if (data) {
+        const allMessages = [];
+        if (data.unreadChats && data.unreadChats.length > 0) {
+          allMessages.push('Chats con mensajes sin leer: ' + data.unreadChats.join(', '));
+        }
+        if (data.messages && data.messages.length > 0) {
+          allMessages.push(`Chat abierto (${data.chatName}):`);
+          allMessages.push(...data.messages);
+        }
+
+        if (allMessages.length > 0) {
+          try {
+            await fetch('http://localhost:8080/api/browser/whatsapp-messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ messages: allMessages })
+            });
+          } catch(e) {}
+        }
+      }
+    } catch(e) {
+      await logToServer('whatsapp_read_error', { attempt, error: e.message });
+      setTimeout(() => readMessages(attempt + 1), 2000);
+    }
+  };
+
+  setTimeout(() => readMessages(0), 3000);
 }
 
 // WhatsApp send message handler

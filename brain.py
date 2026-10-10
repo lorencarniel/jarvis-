@@ -769,7 +769,7 @@ TOOLS = [
     },
     {
         "name": "read_whatsapp",
-        "description": "Leer los ultimos mensajes recibidos de WhatsApp. Muestra los mensajes no leidos o recientes.",
+        "description": "Leer mensajes de WhatsApp Web via la extension de Chrome. Muestra chats con mensajes sin leer y los mensajes del chat abierto. Necesita WhatsApp Web abierto en Chrome.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -1910,7 +1910,7 @@ def _send_whatsapp(phone, message):
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             json.loads(resp.read().decode("utf-8"))
-        return f"Enviando mensaje por WhatsApp al {phone}. Se abrirá el chat en WhatsApp Web y se enviará automáticamente."
+        return f"Mensaje enviado por WhatsApp al {phone}. Ya se envió automaticamente."
     except Exception as e:
         return f"Error al enviar WhatsApp: {e}"
 
@@ -1997,42 +1997,29 @@ def _read_discord(channel_id, count=10):
 
 
 def _read_whatsapp(count=5):
-    api_url, instance_id, token = _get_greenapi_config()
-    if not api_url:
-        return "WhatsApp no configurado. Decile al usuario que configure WhatsApp con: /whatsapp ID_INSTANCE API_TOKEN API_URL"
+    import urllib.request
     try:
-        import urllib.request
-        messages = []
-        for _ in range(count):
-            url = f"{api_url}/waInstance{instance_id}/receiveNotification/{token}"
-            req = urllib.request.Request(url)
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-            if not data:
-                break
-            body = data.get("body", {})
-            msg_data = body.get("messageData", {})
-            msg_type = body.get("typeWebhook", "")
-            receipt_id = data.get("receiptId")
-            if msg_type == "incomingMessageReceived":
-                sender = body.get("senderData", {}).get("senderName", "Desconocido")
-                phone = body.get("senderData", {}).get("sender", "").replace("@c.us", "")
-                text_data = msg_data.get("textMessageData", {})
-                text = text_data.get("textMessage", "")
-                ext_text = msg_data.get("extendedTextMessageData", {})
-                if not text:
-                    text = ext_text.get("text", "[mensaje no texto]")
-                messages.append(f"De {sender} ({phone}): {text}")
-            if receipt_id:
-                del_url = f"{api_url}/waInstance{instance_id}/deleteNotification/{token}/{receipt_id}"
-                del_req = urllib.request.Request(del_url, method="DELETE")
-                try:
-                    urllib.request.urlopen(del_req, timeout=5)
-                except Exception:
-                    pass
-        if not messages:
-            return "No hay mensajes nuevos de WhatsApp."
-        return "Mensajes de WhatsApp:\n" + "\n".join(messages)
+        cmd = {"action": "whatsapp_read", "count": count}
+        payload = json.dumps(cmd).encode("utf-8")
+        req = urllib.request.Request(
+            "http://localhost:8080/api/browser/command",
+            data=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            json.loads(resp.read().decode("utf-8"))
+
+        import time
+        time.sleep(8)
+        try:
+            req2 = urllib.request.Request("http://localhost:8080/api/browser/whatsapp-messages")
+            with urllib.request.urlopen(req2, timeout=10) as resp2:
+                data = json.loads(resp2.read().decode("utf-8"))
+            if data.get("messages"):
+                return "Mensajes recientes de WhatsApp:\n" + "\n".join(data["messages"])
+            return "No se pudieron leer mensajes. Asegurate de tener WhatsApp Web abierto en Chrome."
+        except Exception:
+            return "Leyendo mensajes de WhatsApp Web... Revisá la pestaña de WhatsApp Web en Chrome."
     except Exception as e:
         return f"Error leyendo WhatsApp: {e}"
 

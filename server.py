@@ -876,6 +876,19 @@ def api_browser_command_post():
     return jsonify({"ok": True, "queued": len(browser_commands)})
 
 
+whatsapp_messages_store = []
+
+@app.route("/api/browser/whatsapp-messages", methods=["GET"])
+def api_whatsapp_messages_get():
+    return jsonify({"messages": whatsapp_messages_store[:]})
+
+@app.route("/api/browser/whatsapp-messages", methods=["POST"])
+def api_whatsapp_messages_post():
+    global whatsapp_messages_store
+    data = request.json
+    whatsapp_messages_store = data.get("messages", [])
+    return jsonify({"ok": True})
+
 @app.route("/api/apps/list", methods=["GET"])
 def api_apps_list():
     query = request.args.get("q", "").lower()
