@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "JARVIS Browser Link",
+  "version": "1.0",
+  "description": "Conecta Chrome con JARVIS para control de pestañas y media",
+  "permissions": ["tabs", "activeTab", "scripting", "alarms"],
+  "host_permissions": [
+    "http://localhost:8080/*",
+    "*://*.youtube.com/*",
+    "*://music.youtube.com/*",
+    "*://open.spotify.com/*",
+    "*://*.twitch.tv/*",
+    "*://*.netflix.com/*",
+    "*://web.whatsapp.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*", "*://music.youtube.com/*", "*://open.spotify.com/*", "*://*.twitch.tv/*", "*://*.netflix.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

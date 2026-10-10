@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S.</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="scanline"></div>
+
+    <div class="hud-container">
+        <header class="hud-header">
+            <div class="logo">
+                <span class="logo-text">J.A.R.V.I.S.</span>
+                <span class="logo-sub">Just A Rather Very Intelligent System</span>
+            </div>
+            <div class="header-right">
+                <div class="tab-nav">
+                    <button class="tab-btn active" data-tab="chat">Chat</button>
+                    <button class="tab-btn" data-tab="memory">Memoria</button>
+                    <button class="tab-btn" data-tab="tasks">Tareas</button>
+                    <button class="tab-btn" data-tab="config">Config</button>
+                </div>
+                <div class="status-bar">
+                    <span class="status-dot"></span>
+                    <span id="status-text">SISTEMA ACTIVO</span>
+                    <span class="time" id="clock"></span>
+                </div>
+            </div>
+        </header>
+
+        <!-- CHAT TAB -->
+        <div class="tab-content active" id="tab-chat">
+            <div class="chat-layout">
+                <div class="chat-sidebar">
+                    <div class="info-card">
+                        <h3>SISTEMA</h3>
+                        <div class="info-row"><span>Estado</span><span id="sys-status" class="val-active">Online</span></div>
+                        <div class="info-row"><span>Voz</span><span id="voice-status" class="val-pending">Cargando</span></div>
+                        <div class="info-row"><span>IA</span><span id="ai-status" class="val-pending">--</span></div>
+                        <div class="info-row"><span>Memoria</span><span id="mem-count">0</span></div>
+                        <div class="info-row"><span>Hora</span><span id="sys-time">--:--</span></div>
+                    </div>
+                    <div class="info-card">
+                        <h3>COMANDOS DE VOZ</h3>
+                        <div class="cmd-list">
+                            <div class="cmd">"Recordá que [dato]"</div>
+                            <div class="cmd">"Crear tarea [titulo]"</div>
+                            <div class="cmd">"Mis tareas pendientes"</div>
+                            <div class="cmd">"Leer mis emails"</div>
+                            <div class="cmd">"Abrir [app/sitio]"</div>
+                            <div class="cmd">"Buscar [algo]"</div>
+                            <div class="cmd">"Que sabes de mi"</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-main">
+                    <div class="arc-reactor" id="arc-reactor">
+                        <canvas id="reactorCanvas" width="840" height="840"></canvas>
+                    </div>
+
+                    <div class="waveform">
+                        <canvas id="waveCanvas" width="600" height="60"></canvas>
+                    </div>
+
+                    <div class="chat-area" id="chat-area">
+                        <div class="message jarvis-msg">
+                            <span class="msg-label">JARVIS</span>
+                            <span class="msg-text">Sistema inicializado. ¿En qué puedo ayudarle, señor?</span>
+                        </div>
+                    </div>
+
+                    <div class="input-area">
+                        <button class="mic-btn" id="mic-btn" title="Click para hablar">
+                            <svg viewBox="0 0 24 24" width="28" height="28">
+                                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="currentColor"/>
+                                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        <input type="text" id="text-input" placeholder="Hablar con Jarvis..." autocomplete="off">
+                        <button class="send-btn" id="video-btn" title="Subir video para transcribir">
+                            <svg viewBox="0 0 24 24" width="22" height="22">
+                                <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        <button class="send-btn" id="video-results-btn" title="Ver último video" style="display:none;">
+                            <svg viewBox="0 0 24 24" width="22" height="22">
+                                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 9h-2v2H9v-2H7v-2h2V7h2v2h2v2zm-1-8.5L17.5 8H13V3.5z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        <input type="file" id="video-input" accept="video/*,audio/*" style="display:none">
+                        <button class="send-btn" id="doc-btn" title="Subir documento para analizar">
+                            <svg viewBox="0 0 24 24" width="22" height="22">
+                                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        <input type="file" id="doc-input" accept=".pdf,.docx,.doc,.txt,.rtf" style="display:none">
+                        <button class="send-btn" id="send-btn">
+                            <svg viewBox="0 0 24 24" width="22" height="22">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MEMORY TAB -->
+        <div class="tab-content" id="tab-memory">
+            <div class="memory-layout">
+                <div class="memory-filters">
+                    <button class="filter-btn active" data-cat="all">Todas</button>
+                    <button class="filter-btn" data-cat="personal">Personal</button>
+                    <button class="filter-btn" data-cat="trabajo">Trabajo</button>
+                    <button class="filter-btn" data-cat="preferencias">Preferencias</button>
+                    <button class="filter-btn" data-cat="importante">Importante</button>
+                </div>
+                <div class="memory-list" id="memory-list"></div>
+            </div>
+        </div>
+
+        <!-- TASKS TAB -->
+        <div class="tab-content" id="tab-tasks">
+            <div class="tasks-layout">
+                <div class="tasks-header">
+                    <h2>Tareas</h2>
+                    <div class="task-filters">
+                        <button class="filter-btn active" data-status="pending">Pendientes</button>
+                        <button class="filter-btn" data-status="completed">Completadas</button>
+                        <button class="filter-btn" data-status="all">Todas</button>
+                    </div>
+                </div>
+                <div class="new-task-form">
+                    <input type="text" id="new-task-title" placeholder="Nueva tarea...">
+                    <input type="date" id="new-task-date">
+                    <input type="time" id="new-task-time">
+                    <button class="config-btn" id="add-task-btn">Agregar</button>
+                </div>
+                <div class="task-list" id="task-list"></div>
+            </div>
+        </div>
+
+        <!-- CONFIG TAB -->
+        <div class="tab-content" id="tab-config">
+            <div class="config-layout">
+                <div class="info-card">
+                    <h3>API KEY DE CLAUDE</h3>
+                    <div class="config-area">
+                        <label>Tu API Key de Anthropic</label>
+                        <input type="text" id="api-key" placeholder="sk-ant-api03-...">
+                        <div style="display:flex;gap:8px;">
+                            <button class="config-btn" id="save-key-btn">Guardar y verificar</button>
+                            <button class="config-btn" id="change-key-btn" style="border-color:var(--warning);color:var(--warning);">Cambiar key</button>
+                        </div>
+                        <p class="config-hint">Obtene tu key en <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></p>
+                        <div id="key-status"></div>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <h3>GMAIL</h3>
+                    <div class="config-area">
+                        <div id="gmail-status"></div>
+                        <p class="config-hint">Para conectar Gmail con App Password:</p>
+                        <ol class="config-steps">
+                            <li>Anda a <a href="https://myaccount.google.com/apppasswords" target="_blank">myaccount.google.com/apppasswords</a></li>
+                            <li>Crea un App Password (nombre: "JARVIS")</li>
+                            <li>Copia la contraseña de 16 caracteres que te da Google</li>
+                            <li>Pegala abajo y dale "Conectar Gmail"</li>
+                        </ol>
+                        <p class="config-hint">O escribi en el chat: <code>/gmail tu@gmail.com tu-app-password</code></p>
+                        <label>Tu Gmail</label>
+                        <input type="email" id="gmail-address" placeholder="tu@gmail.com">
+                        <label>App Password</label>
+                        <input type="password" id="gmail-app-pwd" placeholder="xxxx xxxx xxxx xxxx">
+                        <button class="config-btn" id="gmail-auth-btn">Conectar Gmail</button>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <h3>GENERACION DE IMAGENES</h3>
+                    <div class="config-area">
+                        <div id="together-status"></div>
+                        <p class="config-hint">Together AI genera imagenes gratis con FLUX. Para configurar:</p>
+                        <ol class="config-steps">
+                            <li>Crea una cuenta gratis en <a href="https://api.together.xyz" target="_blank">together.ai</a></li>
+                            <li>Anda a Settings &gt; API Keys</li>
+                            <li>Copia tu API Key y pegala abajo</li>
+                        </ol>
+                        <label>Together AI API Key</label>
+                        <input type="text" id="together-key" placeholder="tu-together-api-key...">
+                        <button class="config-btn" id="save-together-btn">Guardar</button>
+                        <p class="config-hint">Sin esta key, JARVIS usa Pollinations (gratis pero menor calidad)</p>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <h3>ACERCA DE</h3>
+                    <div class="config-area">
+                        <p class="config-hint">J.A.R.V.I.S. v5.0 — Tu asistente personal con IA</p>
+                        <p class="config-hint">Cerebro: Claude (Anthropic) | Memoria: SQLite local | Voz: Web Speech API</p>
+                        <p class="config-hint">Gmail (IMAP/SMTP) | Archivos del sistema | Programacion autonoma</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="jarvis.js?v=9.0"></script>
+</body>
+</html>

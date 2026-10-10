@@ -1,0 +1,48 @@
+# Base de datos con memorias y API keys del usuario
+*.db
+
+# Archivos generados por el usuario
+uploads/
+clips/
+generated_images/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+server_log.txt
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Archivos temporales y de test
+test_*.py
+fix_*.py
+setup_whatsapp.py
+
+# Versiones viejas de UI (las actuales estan en ui/)
+/index.html
+/jarvis.js
+/styles.css
+
+# Modelos de Whisper (se descargan automaticamente)
+*.bin
+*.pt
+
+# Audio temporal de TTS
+*.mp3
+
+# Autostart (configuracion local del usuario)
+autostart.bat
