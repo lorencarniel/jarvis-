@@ -101,7 +101,7 @@ Podes consultar el clima con get_weather (usa wttr.in, gratis).
 Podes buscar noticias con get_news.
 Podes leer y escribir el portapapeles con clipboard_read y clipboard_write.
 Podes tomar capturas de pantalla con take_screenshot (se guarda en Desktop).
-Podes enviar mensajes de WhatsApp con send_whatsapp (abre wa.me con el mensaje).
+Podes enviar mensajes de WhatsApp con send_whatsapp (se envia automaticamente via la extension de Chrome, no hay que copiar ni pegar nada).
 DISCORD: Si el bot de Discord esta configurado, podes enviar mensajes con send_discord, leer mensajes con read_discord, y listar servidores/canales con list_discord_channels. SIEMPRE usa list_discord_channels primero para obtener el channel_id si no lo tenes.
 Podes leer paginas web con read_webpage para resumirlas o analizarlas.
 Podes controlar el volumen con control_volume (up/down/mute/unmute/set).
@@ -159,7 +159,7 @@ CALENDARIO GOOGLE:
 Si el usuario configuro su Google Calendar (URL iCal), podes ver los eventos de hoy con get_calendar_events. Usar cuando pregunte "que tengo hoy", "tengo alguna reunion", "mi agenda".
 
 WHATSAPP:
-Podes enviar mensajes de WhatsApp con send_whatsapp (abre WhatsApp Web con el mensaje listo, el usuario apreta enviar).
+Podes enviar mensajes de WhatsApp con send_whatsapp. El mensaje se envia AUTOMATICAMENTE via la extension de Chrome (abre el chat en WhatsApp Web, escribe el mensaje y hace click en enviar solo). NO copies al portapapeles, NO le digas al usuario que pegue nada. Simplemente usa send_whatsapp y confirmale que se envio.
 Para buscar contactos por nombre usa search_whatsapp_contacts. Para leer mensajes usa read_whatsapp.
 REGLA: Cuando el usuario diga un NOMBRE, primero busca en TUS MEMORIAS (ya tenes numeros guardados ahi como "Papa = 5493625637199"). Si no esta en memorias, usa search_whatsapp_contacts. Si tampoco encuentra, pedile el numero y guardalo con save_memory.
 Cuando diga "tengo mensajes?", "que me escribieron por whatsapp", usa read_whatsapp.
@@ -746,7 +746,7 @@ TOOLS = [
     },
     {
         "name": "send_whatsapp",
-        "description": "Enviar un mensaje de WhatsApp. Abre WhatsApp Web con el mensaje listo. Busca el numero en memorias primero, o usa search_whatsapp_contacts.",
+        "description": "Enviar un mensaje de WhatsApp automaticamente. La extension de Chrome abre el chat, escribe el mensaje y lo envia solo. NO copiar al portapapeles. Busca el numero en memorias primero, o usa search_whatsapp_contacts.",
         "input_schema": {
             "type": "object",
             "properties": {
