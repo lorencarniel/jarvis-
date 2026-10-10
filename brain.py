@@ -887,6 +887,14 @@ def build_system_prompt():
 
 def process_tool_call(tool_name, tool_input):
     print(f"[TOOL] {tool_name}: {tool_input}", flush=True)
+    try:
+        return _process_tool_call_inner(tool_name, tool_input)
+    except Exception as e:
+        print(f"[TOOL ERROR] {tool_name}: {e}", flush=True)
+        return f"Error ejecutando {tool_name}: {e}"
+
+
+def _process_tool_call_inner(tool_name, tool_input):
     if tool_name == "save_memory":
         mem.save_memory(
             category=tool_input["category"],
@@ -1370,15 +1378,21 @@ def _web_search(query, max_results=5):
 
 
 def _search_videos(query, max_results=10):
+    results = []
     try:
         from ddgs import DDGS
         results = list(DDGS().videos(query, max_results=max_results))
     except ImportError:
-        from duckduckgo_search import DDGS
-        with DDGS() as ddgs:
-            results = list(ddgs.videos(query, max_results=max_results))
+        try:
+            from duckduckgo_search import DDGS
+            with DDGS() as ddgs:
+                results = list(ddgs.videos(query, max_results=max_results))
+        except Exception as e:
+            print(f"[SEARCH] Video search fallback error: {e}", flush=True)
+    except Exception as e:
+        print(f"[SEARCH] Video search error: {e}", flush=True)
     if not results:
-        return f"No encontre videos para: {query}"
+        return f"No encontre videos para: {query}. Podes intentar con play_youtube para buscar y reproducir directamente."
     text = f"Encontre {len(results)} videos:\n"
     for i, r in enumerate(results, 1):
         title = r.get("title", "Sin titulo")
