@@ -1,9 +1,14 @@
+import sys
+import io
 import anthropic
 from datetime import datetime
 import json
 import os
 import re
 import memory as mem
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 
 SYSTEM_PROMPT = """Eres JARVIS, el asistente personal de inteligencia artificial del usuario, inspirado en el JARVIS de Tony Stark (Iron Man).
