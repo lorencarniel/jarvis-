@@ -234,7 +234,7 @@ def api_connections():
                 "name": "Telegram",
                 "description": "Mensajes y notificaciones via bot",
                 "category": "available",
-                "connected": False,
+                "connected": bool(mem.get_config("telegram_bot_token")),
                 "icon": "telegram"
             },
             {
@@ -242,7 +242,7 @@ def api_connections():
                 "name": "Notion",
                 "description": "Notas, bases de datos y documentos",
                 "category": "available",
-                "connected": False,
+                "connected": bool(mem.get_config("notion_api_key")),
                 "icon": "notion"
             },
             {
@@ -258,7 +258,7 @@ def api_connections():
                 "name": "Discord",
                 "description": "Mensajes y notificaciones via bot",
                 "category": "available",
-                "connected": False,
+                "connected": bool(mem.get_config("discord_bot_token")),
                 "icon": "discord"
             },
             {
@@ -266,7 +266,7 @@ def api_connections():
                 "name": "Slack",
                 "description": "Mensajes en canales y directos",
                 "category": "available",
-                "connected": False,
+                "connected": bool(mem.get_config("slack_webhook_url")),
                 "icon": "slack"
             },
             {
@@ -274,7 +274,7 @@ def api_connections():
                 "name": "GitHub",
                 "description": "Repos, issues y pull requests",
                 "category": "available",
-                "connected": False,
+                "connected": bool(mem.get_config("github_token")),
                 "icon": "github"
             },
             {
@@ -282,7 +282,7 @@ def api_connections():
                 "name": "Trello",
                 "description": "Tableros y tarjetas de proyecto",
                 "category": "available",
-                "connected": False,
+                "connected": bool(mem.get_config("trello_api_key")),
                 "icon": "trello"
             },
             {
@@ -290,7 +290,7 @@ def api_connections():
                 "name": "Todoist",
                 "description": "Gestion avanzada de tareas",
                 "category": "available",
-                "connected": False,
+                "connected": bool(mem.get_config("todoist_api_token")),
                 "icon": "todoist"
             },
             {
@@ -346,7 +346,7 @@ def api_connections():
                 "name": "Obsidian",
                 "description": "Notas en Markdown con enlaces",
                 "category": "available",
-                "connected": False,
+                "connected": bool(mem.get_config("obsidian_url")),
                 "icon": "obsidian"
             },
             {
@@ -354,7 +354,7 @@ def api_connections():
                 "name": "OpenAI",
                 "description": "DALL-E y GPT como herramientas auxiliares",
                 "category": "available",
-                "connected": False,
+                "connected": bool(mem.get_config("openai_api_key")),
                 "icon": "openai"
             },
             {
@@ -362,7 +362,7 @@ def api_connections():
                 "name": "Home Assistant",
                 "description": "Control de luces y dispositivos inteligentes",
                 "category": "available",
-                "connected": False,
+                "connected": bool(mem.get_config("homeassistant_url")),
                 "icon": "homeassistant"
             },
             {
@@ -370,7 +370,7 @@ def api_connections():
                 "name": "ElevenLabs",
                 "description": "Voces ultra realistas con IA",
                 "category": "available",
-                "connected": False,
+                "connected": bool(mem.get_config("elevenlabs_api_key")),
                 "icon": "elevenlabs"
             },
             {
@@ -392,6 +392,25 @@ def api_set_calendar():
     if not url:
         return jsonify({"error": "URL vacia"}), 400
     mem.set_config("google_calendar_url", url)
+    return jsonify({"success": True})
+
+
+@app.route("/api/config/connection", methods=["POST"])
+def api_set_connection():
+    data = request.json
+    key = data.get("key", "").strip()
+    value = data.get("value", "").strip()
+    allowed_keys = [
+        "telegram_bot_token", "discord_bot_token", "slack_webhook_url",
+        "github_token", "trello_api_key", "todoist_api_token",
+        "openai_api_key", "elevenlabs_api_key", "homeassistant_url",
+        "obsidian_url", "notion_api_key", "google_calendar_url",
+    ]
+    if key not in allowed_keys:
+        return jsonify({"error": "Clave no permitida"}), 400
+    if not value:
+        return jsonify({"error": "Valor vacio"}), 400
+    mem.set_config(key, value)
     return jsonify({"success": True})
 
 

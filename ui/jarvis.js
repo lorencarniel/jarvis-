@@ -1657,6 +1657,29 @@ const JARVIS = {
         }
     },
 
+    connectionSetup: {
+        claude: { tab: 'config', msg: 'Configurar API Key de Claude' },
+        chrome: { steps: ['Abrir chrome://extensions en Chrome', 'Activar "Modo desarrollador"', 'Click en "Cargar descomprimida"', 'Seleccionar la carpeta chrome-extension/ del proyecto'] },
+        gmail: { tab: 'config', msg: 'Configurar Gmail con App Password' },
+        together: { tab: 'config', msg: 'Configurar API Key de Together AI' },
+        calendar: { type: 'api_key', key: 'google_calendar_url', label: 'URL del calendario (iCal)', placeholder: 'https://calendar.google.com/calendar/ical/...', steps: ['Ir a Google Calendar > Configuracion', 'Click en tu calendario > "Integracion del calendario"', 'Copiar la "Direccion secreta en formato iCal"'] },
+        telegram: { type: 'api_key', key: 'telegram_bot_token', label: 'Bot Token', placeholder: '123456789:ABCdefGhIjKlMnOpQrStUvWxYz', steps: ['Hablar con @BotFather en Telegram', 'Enviar /newbot y seguir los pasos', 'Copiar el token que te da'] },
+        discord: { type: 'api_key', key: 'discord_bot_token', label: 'Bot Token', placeholder: 'Tu token de bot de Discord', steps: ['Ir a discord.com/developers/applications', 'Crear una aplicacion > Bot > Reset Token', 'Copiar el token', 'Invitar el bot a tu servidor'] },
+        slack: { type: 'api_key', key: 'slack_webhook_url', label: 'Webhook URL', placeholder: 'https://hooks.slack.com/services/...', steps: ['Ir a api.slack.com/apps > Create App', 'Activar Incoming Webhooks', 'Copiar la Webhook URL'] },
+        github: { type: 'api_key', key: 'github_token', label: 'Personal Access Token', placeholder: 'ghp_xxxxxxxxxxxx', steps: ['Ir a github.com > Settings > Developer settings', 'Personal access tokens > Generate new token', 'Seleccionar permisos (repo, notifications)', 'Copiar el token'] },
+        trello: { type: 'api_key', key: 'trello_api_key', label: 'API Key', placeholder: 'Tu API key de Trello', steps: ['Ir a trello.com/app-key', 'Copiar tu API Key', 'Generar un Token de acceso'] },
+        todoist: { type: 'api_key', key: 'todoist_api_token', label: 'API Token', placeholder: 'Tu token de Todoist', steps: ['Abrir Todoist > Configuracion > Integraciones', 'Copiar el "Token de la API"'] },
+        twitter: { type: 'coming_soon' },
+        instagram: { type: 'coming_soon' },
+        teams: { type: 'coming_soon' },
+        sheets: { type: 'coming_soon' },
+        obsidian: { steps: ['Instalar el plugin "Local REST API" en Obsidian', 'Activar el plugin y configurar el puerto', 'JARVIS se conecta automaticamente'] },
+        openai: { type: 'api_key', key: 'openai_api_key', label: 'API Key', placeholder: 'sk-...', steps: ['Ir a platform.openai.com/api-keys', 'Crear una nueva API Key', 'Copiar el token'] },
+        homeassistant: { type: 'api_key', key: 'homeassistant_url', label: 'URL + Token', placeholder: 'http://homeassistant.local:8123', steps: ['Abrir Home Assistant > Perfil > Tokens de larga duracion', 'Crear un token nuevo', 'Copiar URL y token'] },
+        elevenlabs: { type: 'api_key', key: 'elevenlabs_api_key', label: 'API Key', placeholder: 'Tu API key de ElevenLabs', steps: ['Ir a elevenlabs.io > Profile + API Key', 'Copiar tu API Key'] },
+        dropbox: { type: 'coming_soon' },
+    },
+
     renderConnectionCard(conn) {
         const icon = this.connectionIcons[conn.icon] || '';
         const statusClass = conn.category === 'available'
@@ -1666,8 +1689,11 @@ const JARVIS = {
             ? (conn.connected ? 'ACTIVO' : 'DISPONIBLE')
             : (conn.connected ? 'ONLINE' : 'OFFLINE');
         const cardClass = conn.connected ? 'connected' : 'disconnected';
+        const hasSetup = this.connectionSetup[conn.id];
+        const clickable = hasSetup ? 'clickable' : '';
+        const onclick = hasSetup ? `onclick="JARVIS.openConnectionSetup('${conn.id}')"` : '';
 
-        return `<div class="connection-card ${cardClass}">
+        return `<div class="connection-card ${cardClass} ${clickable}" ${onclick}>
             <div class="connection-icon">${icon}</div>
             <div class="connection-info">
                 <div class="connection-name">${this.esc(conn.name)}</div>
@@ -1675,6 +1701,116 @@ const JARVIS = {
             </div>
             <div class="connection-status ${statusClass}">${statusText}</div>
         </div>`;
+    },
+
+    openConnectionSetup(connId) {
+        const setup = this.connectionSetup[connId];
+        if (!setup) return;
+
+        if (setup.tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const tabBtn = document.querySelector(`.tab-btn[data-tab="${setup.tab}"]`);
+            if (tabBtn) tabBtn.classList.add('active');
+            document.getElementById(`tab-${setup.tab}`).classList.add('active');
+            return;
+        }
+
+        const icon = this.connectionIcons[connId] || '';
+        const allConns = document.querySelectorAll('.connection-card');
+        let connName = connId;
+        allConns.forEach(c => {
+            if (c.onclick && c.onclick.toString().includes(connId)) {
+                connName = c.querySelector('.connection-name')?.textContent || connId;
+            }
+        });
+
+        const names = {
+            calendar: 'Google Calendar', telegram: 'Telegram', discord: 'Discord',
+            slack: 'Slack', github: 'GitHub', trello: 'Trello', todoist: 'Todoist',
+            twitter: 'X / Twitter', instagram: 'Instagram', teams: 'Microsoft Teams',
+            sheets: 'Google Sheets', obsidian: 'Obsidian', openai: 'OpenAI',
+            homeassistant: 'Home Assistant', elevenlabs: 'ElevenLabs', dropbox: 'Dropbox',
+            chrome: 'Chrome Extension'
+        };
+
+        let bodyHTML = '';
+
+        if (setup.type === 'coming_soon') {
+            bodyHTML = `
+                <div class="setup-coming-soon">
+                    <div class="setup-icon">${icon}</div>
+                    <p>La integracion con <strong>${this.esc(names[connId] || connId)}</strong> estara disponible proximamente.</p>
+                    <p class="config-hint">Mientras tanto, podes pedirle a JARVIS que abra ${this.esc(names[connId] || connId)} en el navegador.</p>
+                </div>`;
+        } else if (setup.type === 'api_key') {
+            const stepsHTML = setup.steps ? setup.steps.map((s, i) =>
+                `<li>${this.esc(s)}</li>`).join('') : '';
+            bodyHTML = `
+                <div class="setup-form">
+                    <div class="setup-icon">${icon}</div>
+                    ${stepsHTML ? `<ol class="config-steps">${stepsHTML}</ol>` : ''}
+                    <label>${this.esc(setup.label)}</label>
+                    <input type="text" id="setup-key-input" placeholder="${this.esc(setup.placeholder || '')}" autocomplete="off">
+                    <button class="config-btn" onclick="JARVIS.saveConnectionKey('${connId}')">Conectar</button>
+                    <div id="setup-status"></div>
+                </div>`;
+        } else if (setup.steps) {
+            const stepsHTML = setup.steps.map((s, i) =>
+                `<li>${this.esc(s)}</li>`).join('');
+            bodyHTML = `
+                <div class="setup-form">
+                    <div class="setup-icon">${icon}</div>
+                    <ol class="config-steps">${stepsHTML}</ol>
+                </div>`;
+        }
+
+        document.querySelector('.setup-overlay')?.remove();
+        const overlay = document.createElement('div');
+        overlay.className = 'setup-overlay';
+        overlay.innerHTML = `
+            <div class="setup-panel">
+                <div class="setup-header">
+                    <h3>Conectar ${this.esc(names[connId] || connId)}</h3>
+                    <button class="analysis-close-btn" onclick="this.closest('.setup-overlay').remove()">&times;</button>
+                </div>
+                <div class="setup-body">${bodyHTML}</div>
+            </div>`;
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+        document.body.appendChild(overlay);
+    },
+
+    async saveConnectionKey(connId) {
+        const setup = this.connectionSetup[connId];
+        const input = document.getElementById('setup-key-input');
+        const status = document.getElementById('setup-status');
+        if (!input || !setup) return;
+        const val = input.value.trim();
+        if (!val) {
+            status.innerHTML = '<span class="status-err">Ingresa un valor</span>';
+            return;
+        }
+        try {
+            const res = await fetch(`${API}/config/connection`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: setup.key, value: val })
+            });
+            const data = await res.json();
+            if (data.success) {
+                status.innerHTML = '<span class="status-ok">Conectado correctamente</span>';
+                setTimeout(() => {
+                    document.querySelector('.setup-overlay')?.remove();
+                    this.loadConnections();
+                }, 1500);
+            } else {
+                status.innerHTML = `<span class="status-err">${this.esc(data.error || 'Error')}</span>`;
+            }
+        } catch(e) {
+            status.innerHTML = '<span class="status-err">Error de conexion</span>';
+        }
     }
 };
 
