@@ -232,7 +232,7 @@ def api_connections():
             {
                 "id": "telegram",
                 "name": "Telegram",
-                "description": "Mensajes via bot de Telegram",
+                "description": "Mensajes y notificaciones via bot",
                 "category": "available",
                 "connected": False,
                 "icon": "telegram"
@@ -240,7 +240,7 @@ def api_connections():
             {
                 "id": "notion",
                 "name": "Notion",
-                "description": "Notas y documentos en Notion",
+                "description": "Notas, bases de datos y documentos",
                 "category": "available",
                 "connected": False,
                 "icon": "notion"
@@ -252,6 +252,134 @@ def api_connections():
                 "category": "available",
                 "connected": False,
                 "icon": "drive"
+            },
+            {
+                "id": "discord",
+                "name": "Discord",
+                "description": "Mensajes y notificaciones via bot",
+                "category": "available",
+                "connected": False,
+                "icon": "discord"
+            },
+            {
+                "id": "slack",
+                "name": "Slack",
+                "description": "Mensajes en canales y directos",
+                "category": "available",
+                "connected": False,
+                "icon": "slack"
+            },
+            {
+                "id": "github",
+                "name": "GitHub",
+                "description": "Repos, issues y pull requests",
+                "category": "available",
+                "connected": False,
+                "icon": "github"
+            },
+            {
+                "id": "trello",
+                "name": "Trello",
+                "description": "Tableros y tarjetas de proyecto",
+                "category": "available",
+                "connected": False,
+                "icon": "trello"
+            },
+            {
+                "id": "todoist",
+                "name": "Todoist",
+                "description": "Gestion avanzada de tareas",
+                "category": "available",
+                "connected": False,
+                "icon": "todoist"
+            },
+            {
+                "id": "twitter",
+                "name": "X / Twitter",
+                "description": "Publicar y leer tweets",
+                "category": "available",
+                "connected": False,
+                "icon": "twitter"
+            },
+            {
+                "id": "instagram",
+                "name": "Instagram",
+                "description": "Ver feed y publicar contenido",
+                "category": "available",
+                "connected": False,
+                "icon": "instagram"
+            },
+            {
+                "id": "twitch",
+                "name": "Twitch",
+                "description": "Streams en vivo y chat",
+                "category": "passive",
+                "connected": ext_recent,
+                "icon": "twitch"
+            },
+            {
+                "id": "netflix",
+                "name": "Netflix",
+                "description": "Control de reproduccion de series y peliculas",
+                "category": "passive",
+                "connected": ext_recent,
+                "icon": "netflix"
+            },
+            {
+                "id": "teams",
+                "name": "Microsoft Teams",
+                "description": "Chat, llamadas y reuniones",
+                "category": "available",
+                "connected": False,
+                "icon": "teams"
+            },
+            {
+                "id": "sheets",
+                "name": "Google Sheets",
+                "description": "Hojas de calculo en la nube",
+                "category": "available",
+                "connected": False,
+                "icon": "sheets"
+            },
+            {
+                "id": "obsidian",
+                "name": "Obsidian",
+                "description": "Notas en Markdown con enlaces",
+                "category": "available",
+                "connected": False,
+                "icon": "obsidian"
+            },
+            {
+                "id": "openai",
+                "name": "OpenAI",
+                "description": "DALL-E y GPT como herramientas auxiliares",
+                "category": "available",
+                "connected": False,
+                "icon": "openai"
+            },
+            {
+                "id": "homeassistant",
+                "name": "Home Assistant",
+                "description": "Control de luces y dispositivos inteligentes",
+                "category": "available",
+                "connected": False,
+                "icon": "homeassistant"
+            },
+            {
+                "id": "elevenlabs",
+                "name": "ElevenLabs",
+                "description": "Voces ultra realistas con IA",
+                "category": "available",
+                "connected": False,
+                "icon": "elevenlabs"
+            },
+            {
+                "id": "dropbox",
+                "name": "Dropbox",
+                "description": "Almacenamiento de archivos en la nube",
+                "category": "available",
+                "connected": False,
+                "icon": "dropbox"
             },
         ]
     })
