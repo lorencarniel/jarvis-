@@ -260,8 +260,8 @@ def api_connections():
             {
                 "id": "discord",
                 "name": "Discord",
-                "description": "Mensajes y notificaciones via bot",
-                "category": "available",
+                "description": "Enviar y leer mensajes via bot",
+                "category": "active" if mem.get_config("discord_bot_token") else "available",
                 "connected": bool(mem.get_config("discord_bot_token")),
                 "icon": "discord"
             },

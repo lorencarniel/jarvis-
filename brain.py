@@ -40,7 +40,7 @@ REGLA ANTI-ASUNCION: NUNCA digas "no esta abierto", "no esta ejecutandose", "no 
 APLICACIONES INSTALADAS (abrir con open_app):
 - ChatGPT / Chat GPT → open_app "chatgpt"
 - Claude / Claude AI / Cloud / Cloud Code → open_app "claude"
-- Discord → open_app "discord"
+- Discord → open_app "discord" (app de escritorio) o send_discord/read_discord (bot integrado)
 - Spotify → open_app "spotify"
 - Steam → open_app "steam"
 - Word / Excel / PowerPoint → open_app "word" / "excel" / "powerpoint"
@@ -79,6 +79,7 @@ Podes buscar noticias con get_news.
 Podes leer y escribir el portapapeles con clipboard_read y clipboard_write.
 Podes tomar capturas de pantalla con take_screenshot (se guarda en Desktop).
 Podes enviar mensajes de WhatsApp con send_whatsapp (abre wa.me con el mensaje).
+DISCORD: Si el bot de Discord esta configurado, podes enviar mensajes con send_discord, leer mensajes con read_discord, y listar servidores/canales con list_discord_channels. SIEMPRE usa list_discord_channels primero para obtener el channel_id si no lo tenes.
 Podes leer paginas web con read_webpage para resumirlas o analizarlas.
 Podes controlar el volumen con control_volume (up/down/mute/unmute/set).
 Podes controlar el brillo con control_brightness (solo notebooks).
@@ -793,6 +794,35 @@ TOOLS = [
         }
     },
     {
+        "name": "send_discord",
+        "description": "Enviar un mensaje a un canal de Discord via bot. Requiere que el bot de Discord este configurado. USAR cuando el usuario pida enviar algo a Discord.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "channel_id": {"type": "string", "description": "ID del canal de Discord. Si no se sabe, usar list_discord_channels para obtenerlo."},
+                "message": {"type": "string", "description": "Texto del mensaje a enviar"}
+            },
+            "required": ["channel_id", "message"]
+        }
+    },
+    {
+        "name": "read_discord",
+        "description": "Leer los ultimos mensajes de un canal de Discord. Requiere bot configurado.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "channel_id": {"type": "string", "description": "ID del canal de Discord"},
+                "count": {"type": "integer", "description": "Cantidad de mensajes a leer (default: 10)"}
+            },
+            "required": ["channel_id"]
+        }
+    },
+    {
+        "name": "list_discord_channels",
+        "description": "Listar los servidores y canales de Discord disponibles para el bot. USAR SIEMPRE antes de send_discord o read_discord si no se conoce el channel_id.",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
         "name": "browser_tabs",
         "description": "Ver las pestañas abiertas en Chrome del usuario. USAR SIEMPRE antes de abrir un sitio web para ver si ya esta abierto. Devuelve lista de pestañas con URL, titulo y si tiene audio.",
         "input_schema": {"type": "object", "properties": {}}
@@ -1032,6 +1062,15 @@ def process_tool_call(tool_name, tool_input):
 
     elif tool_name == "whatsapp_call":
         return _whatsapp_call(tool_input)
+
+    elif tool_name == "send_discord":
+        return _send_discord(tool_input["channel_id"], tool_input["message"])
+
+    elif tool_name == "read_discord":
+        return _read_discord(tool_input["channel_id"], tool_input.get("count", 10))
+
+    elif tool_name == "list_discord_channels":
+        return _list_discord_channels()
 
     elif tool_name == "browser_tabs":
         return _browser_tabs()
@@ -1823,6 +1862,87 @@ def _send_whatsapp(phone, message):
     phone = phone.replace("+", "").replace(" ", "").replace("-", "")
     _clipboard_write(message)
     return f"Mensaje copiado al portapapeles. Decile al usuario que vaya al chat de WhatsApp Web y pegue con Ctrl+V. El mensaje es: \"{message}\""
+
+
+def _get_discord_headers():
+    token = mem.get_config("discord_bot_token")
+    if not token:
+        return None, "Discord no configurado. Decile al usuario que vaya a la pestaña Conexiones y configure el Bot Token de Discord."
+    return {"Authorization": f"Bot {token}", "Content-Type": "application/json"}, None
+
+
+def _list_discord_channels():
+    headers, err = _get_discord_headers()
+    if err:
+        return err
+    try:
+        import urllib.request
+        req = urllib.request.Request("https://discord.com/api/v10/users/@me/guilds", headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            guilds = json.loads(resp.read().decode("utf-8"))
+        result = []
+        for guild in guilds[:10]:
+            guild_name = guild["name"]
+            guild_id = guild["id"]
+            try:
+                req2 = urllib.request.Request(f"https://discord.com/api/v10/guilds/{guild_id}/channels", headers=headers)
+                with urllib.request.urlopen(req2, timeout=10) as resp2:
+                    channels = json.loads(resp2.read().decode("utf-8"))
+                text_channels = [c for c in channels if c.get("type") == 0]
+                ch_list = ", ".join([f"#{c['name']} (ID: {c['id']})" for c in text_channels[:15]])
+                result.append(f"Servidor: {guild_name}\n  Canales: {ch_list}")
+            except Exception:
+                result.append(f"Servidor: {guild_name} (no se pudieron listar canales)")
+        if not result:
+            return "El bot no esta en ningun servidor. El usuario debe invitar el bot a su servidor de Discord."
+        return "Servidores y canales de Discord:\n\n" + "\n\n".join(result)
+    except Exception as e:
+        return f"Error conectando con Discord: {e}"
+
+
+def _send_discord(channel_id, message):
+    headers, err = _get_discord_headers()
+    if err:
+        return err
+    try:
+        import urllib.request
+        data = json.dumps({"content": message}).encode("utf-8")
+        req = urllib.request.Request(
+            f"https://discord.com/api/v10/channels/{channel_id}/messages",
+            data=data,
+            headers=headers,
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+        return f"Mensaje enviado a Discord (canal {channel_id}): {message[:100]}"
+    except Exception as e:
+        return f"Error enviando mensaje a Discord: {e}"
+
+
+def _read_discord(channel_id, count=10):
+    headers, err = _get_discord_headers()
+    if err:
+        return err
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            f"https://discord.com/api/v10/channels/{channel_id}/messages?limit={min(count, 50)}",
+            headers=headers
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            messages = json.loads(resp.read().decode("utf-8"))
+        if not messages:
+            return "No hay mensajes en este canal."
+        result = []
+        for msg in reversed(messages):
+            author = msg.get("author", {}).get("username", "?")
+            content = msg.get("content", "")
+            timestamp = msg.get("timestamp", "")[:16].replace("T", " ")
+            result.append(f"[{timestamp}] {author}: {content}")
+        return f"Ultimos {len(messages)} mensajes del canal:\n" + "\n".join(result)
+    except Exception as e:
+        return f"Error leyendo Discord: {e}"
 
 
 def _read_whatsapp(count=5):
