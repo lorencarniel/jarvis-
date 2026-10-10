@@ -552,6 +552,22 @@ def api_apps_list():
     return jsonify({"apps": results, "total": len(results)})
 
 
+extension_logs = []
+
+@app.route("/api/browser/log", methods=["POST"])
+def api_browser_log():
+    data = request.json
+    entry = {"ts": datetime.now().isoformat(), **data}
+    extension_logs.append(entry)
+    if len(extension_logs) > 50:
+        extension_logs.pop(0)
+    print(f"[EXT-LOG] {data}", flush=True)
+    return jsonify({"ok": True})
+
+@app.route("/api/browser/logs", methods=["GET"])
+def api_browser_logs_get():
+    return jsonify(extension_logs)
+
 @app.route("/api/browser/debug", methods=["GET"])
 def api_browser_debug():
     return jsonify({
@@ -560,7 +576,8 @@ def api_browser_debug():
         "media_count": len(browser_state.get("media", [])),
         "activeMedia_count": len(browser_state.get("activeMedia", [])),
         "tabs_count": len(browser_state.get("tabs", [])),
-        "media": browser_state.get("media", [])
+        "media": browser_state.get("media", []),
+        "extension_logs": extension_logs[-10:]
     })
 
 

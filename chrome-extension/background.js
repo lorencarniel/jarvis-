@@ -1,6 +1,17 @@
 const API = 'http://localhost:8080/api/browser';
 let mediaInfo = {};
 
+// Enviar logs al servidor para diagnostico
+async function logToServer(msg, data) {
+  try {
+    await fetch(`${API}/log`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ msg, data })
+    });
+  } catch(e) {}
+}
+
 // Recibir info de media de los content scripts
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg.type === 'media_update' && sender.tab) {
@@ -193,11 +204,14 @@ async function handleWhatsAppCall(phone, callType) {
   const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
   const waUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}`;
 
+  await logToServer('whatsapp_call_start', { phone: cleanPhone, callType, url: waUrl });
+
   const tabs = await chrome.tabs.query({});
   let waTab = tabs.find(t => t.url && t.url.includes('web.whatsapp.com'));
   let needsFullLoad = false;
 
   if (waTab) {
+    await logToServer('whatsapp_tab_found', { tabId: waTab.id, url: waTab.url });
     await chrome.tabs.update(waTab.id, { active: true });
     await chrome.windows.update(waTab.windowId, { focused: true });
     await chrome.scripting.executeScript({
@@ -206,97 +220,144 @@ async function handleWhatsAppCall(phone, callType) {
       args: [waUrl]
     });
   } else {
+    await logToServer('whatsapp_new_tab', {});
     waTab = await chrome.tabs.create({ url: waUrl });
     needsFullLoad = true;
   }
 
   const tabId = waTab.id;
-  const initialWait = needsFullLoad ? 8000 : 5000;
+  const initialWait = needsFullLoad ? 10000 : 6000;
   let attempts = 0;
 
   const findAndClickCallButton = async () => {
     attempts++;
-    if (attempts > 30) {
-      console.log('[JARVIS] WhatsApp call: timeout');
+    if (attempts > 20) {
+      await logToServer('whatsapp_timeout', { attempts });
       return;
     }
 
     try {
       const results = await chrome.scripting.executeScript({
         target: { tabId },
+        func: () => {
+          // Recoger TODO el diagnostico posible
+          const allDataIcons = [...document.querySelectorAll('[data-icon]')].map(el => ({
+            icon: el.getAttribute('data-icon'),
+            tag: el.tagName,
+            parentTag: el.parentElement?.tagName,
+            inHeader: !!el.closest('header'),
+            inFooter: !!el.closest('footer'),
+            ariaLabel: el.closest('button')?.getAttribute('aria-label') || el.closest('[role="button"]')?.getAttribute('aria-label') || ''
+          }));
+
+          // Info de headers
+          const headers = document.querySelectorAll('header');
+          const headerInfo = [...headers].map((h, i) => ({
+            idx: i,
+            childButtons: h.querySelectorAll('button, [role="button"]').length,
+            dataIcons: [...h.querySelectorAll('[data-icon]')].map(e => e.getAttribute('data-icon')),
+            ariaLabels: [...h.querySelectorAll('[aria-label]')].map(e => ({
+              label: e.getAttribute('aria-label'),
+              tag: e.tagName,
+              icon: e.querySelector('[data-icon]')?.getAttribute('data-icon') || null
+            }))
+          }));
+
+          // Buscar testids relevantes
+          const testIds = [...document.querySelectorAll('[data-testid]')]
+            .map(e => e.getAttribute('data-testid'))
+            .filter(t => t.includes('call') || t.includes('phone') || t.includes('audio') || t.includes('header'));
+
+          return {
+            allIcons: allDataIcons,
+            headers: headerInfo,
+            testIds,
+            title: document.title,
+            url: window.location.href
+          };
+        }
+      });
+
+      const diag = results?.[0]?.result;
+      await logToServer('whatsapp_diag', {
+        attempt: attempts,
+        title: diag?.title,
+        url: diag?.url,
+        headerCount: diag?.headers?.length,
+        headers: diag?.headers,
+        testIds: diag?.testIds,
+        iconCount: diag?.allIcons?.length,
+        headerIcons: diag?.allIcons?.filter(i => i.inHeader),
+        callRelated: diag?.allIcons?.filter(i =>
+          i.icon?.includes('call') || i.icon?.includes('phone') ||
+          i.icon?.includes('audio') || i.icon?.includes('video') ||
+          i.ariaLabel?.toLowerCase().includes('call') || i.ariaLabel?.toLowerCase().includes('llamad')
+        )
+      });
+
+      // Ahora intentar clickear
+      const clickResult = await chrome.scripting.executeScript({
+        target: { tabId },
         func: (callType) => {
-          // DIAGNOSTICO: logear todos los data-icon de la pagina
-          const allDataIcons = [...document.querySelectorAll('[data-icon]')].map(el => el.getAttribute('data-icon'));
-          console.log('[JARVIS-DIAG] data-icons en pagina:', JSON.stringify(allDataIcons));
+          const isVideo = callType === 'video';
 
-          // Nombres de icono que WhatsApp usa para llamadas
-          const callIconNames = callType === 'video'
-            ? ['video-call', 'videocam']
-            : ['audio-call', 'call', 'phone'];
-
-          // EXCLUIR estos: son botones de nota de voz / grabar audio (NO llamada)
-          const excludeIcons = ['ptt', 'audio-ptt', 'microphone', 'mic', 'ptt-recording'];
-
-          // Buscar en headers (panel superior del chat)
-          const headers = document.querySelectorAll('header, [data-testid="conversation-header"], [data-testid="chat-header"]');
+          // 1) Buscar en headers por data-icon
+          const headers = document.querySelectorAll('header');
           for (const header of headers) {
-            for (const iconName of callIconNames) {
-              const icon = header.querySelector(`[data-icon="${iconName}"]`);
-              if (icon) {
-                const btn = icon.closest('button') || icon.closest('[role="button"]') || icon.parentElement;
-                if (btn) {
-                  btn.click();
-                  return { ok: true, method: 'header-icon', icon: iconName };
-                }
-              }
-            }
-            // Buscar por data-testid
-            for (const iconName of callIconNames) {
-              const el = header.querySelector(`[data-testid="${iconName}"]`);
-              if (el) {
-                (el.closest('button') || el).click();
-                return { ok: true, method: 'header-testid', icon: iconName };
-              }
-            }
-          }
-
-          // Buscar globalmente pero EXCLUIR footer/compose/mensajes
-          for (const iconName of callIconNames) {
-            const icons = document.querySelectorAll(`[data-icon="${iconName}"]`);
+            const icons = header.querySelectorAll('[data-icon]');
             for (const icon of icons) {
-              if (icon.closest('footer')) continue;
-              if (icon.closest('[data-testid="conversation-compose-box"]')) continue;
-              if (icon.closest('[data-testid="msg-container"]')) continue;
-              if (icon.closest('[data-testid="chat-input"]')) continue;
-              const btn = icon.closest('button') || icon.closest('[role="button"]') || icon.parentElement;
-              if (btn) {
-                btn.click();
-                return { ok: true, method: 'global-filtered', icon: iconName };
+              const name = icon.getAttribute('data-icon');
+              if (isVideo && (name === 'video-call' || name === 'videocam')) {
+                const btn = icon.closest('button') || icon.closest('[role="button"]') || icon.parentElement;
+                if (btn) { btn.click(); return { ok: true, method: 'header-data-icon', icon: name }; }
+              }
+              if (!isVideo && (name === 'audio-call' || name === 'call' || name === 'phone')) {
+                const btn = icon.closest('button') || icon.closest('[role="button"]') || icon.parentElement;
+                if (btn) { btn.click(); return { ok: true, method: 'header-data-icon', icon: name }; }
               }
             }
           }
 
-          // Buscar por aria-label SOLO con texto muy especifico de llamada
-          const allBtns = document.querySelectorAll('header button, header [role="button"]');
-          for (const btn of allBtns) {
-            const label = ((btn.getAttribute('aria-label') || '') + ' ' + (btn.getAttribute('title') || '')).toLowerCase();
-            if (callType === 'video' && label.includes('video') && (label.includes('call') || label.includes('llamada'))) {
-              btn.click();
-              return { ok: true, method: 'aria-label', label };
-            }
-            if (callType !== 'video' && (label.includes('llamada de voz') || label.includes('voice call') || label === 'llamar' || label === 'call')) {
-              btn.click();
-              return { ok: true, method: 'aria-label', label };
+          // 2) Buscar en headers por aria-label
+          for (const header of headers) {
+            const btns = header.querySelectorAll('button, [role="button"], span[title]');
+            for (const btn of btns) {
+              const label = (btn.getAttribute('aria-label') || btn.getAttribute('title') || '').toLowerCase().trim();
+              if (isVideo && (label === 'videollamada' || label === 'video call' || (label.includes('video') && label.includes('llamada')))) {
+                btn.click();
+                return { ok: true, method: 'header-aria', label };
+              }
+              if (!isVideo && (label === 'llamada' || label === 'llamar' || label === 'call' || label === 'voice call' || label === 'audio call' || label.includes('llamada de voz'))) {
+                btn.click();
+                return { ok: true, method: 'header-aria', label };
+              }
             }
           }
 
-          return { ok: false, icons: allDataIcons.filter(i => i.includes('call') || i.includes('audio') || i.includes('phone') || i.includes('ptt')) };
+          // 3) Buscar globalmente (excluyendo footer/compose)
+          const allIcons = document.querySelectorAll('[data-icon]');
+          for (const icon of allIcons) {
+            if (icon.closest('footer')) continue;
+            if (icon.closest('[data-testid="conversation-compose-box"]')) continue;
+            if (icon.closest('[data-testid="msg-container"]')) continue;
+            const name = icon.getAttribute('data-icon');
+            if (!isVideo && (name === 'audio-call' || name === 'call' || name === 'phone')) {
+              const btn = icon.closest('button') || icon.closest('[role="button"]') || icon.parentElement;
+              if (btn) { btn.click(); return { ok: true, method: 'global-data-icon', icon: name }; }
+            }
+            if (isVideo && (name === 'video-call' || name === 'videocam')) {
+              const btn = icon.closest('button') || icon.closest('[role="button"]') || icon.parentElement;
+              if (btn) { btn.click(); return { ok: true, method: 'global-data-icon', icon: name }; }
+            }
+          }
+
+          return { ok: false };
         },
         args: [callType]
       });
 
-      const r = results?.[0]?.result;
-      console.log('[JARVIS] WhatsApp call attempt', attempts, ':', JSON.stringify(r));
+      const r = clickResult?.[0]?.result;
+      await logToServer('whatsapp_click', { attempt: attempts, result: r });
 
       if (r?.ok) {
         setTimeout(() => confirmCall(tabId, callType, 0), 2000);
@@ -304,23 +365,24 @@ async function handleWhatsAppCall(phone, callType) {
         setTimeout(findAndClickCallButton, 2000);
       }
     } catch(e) {
-      console.log('[JARVIS] WhatsApp call error:', e.message);
+      await logToServer('whatsapp_error', { attempt: attempts, error: e.message });
       setTimeout(findAndClickCallButton, 3000);
     }
   };
 
   const confirmCall = async (tabId, callType, n) => {
-    if (n > 10) return;
+    if (n > 10) {
+      await logToServer('whatsapp_confirm_timeout', { n });
+      return;
+    }
     try {
       const results = await chrome.scripting.executeScript({
         target: { tabId },
         func: () => {
-          // Ya empezo la llamada?
           if (document.querySelector('[data-icon="end-call"], [data-testid="end-call"]')) {
             return { confirmed: true, reason: 'call-active' };
           }
-          // Buscar dialogo de confirmacion
-          const dialogs = document.querySelectorAll('[role="dialog"]');
+          const dialogs = document.querySelectorAll('[role="dialog"], [data-animate-modal-popup="true"]');
           for (const d of dialogs) {
             const btns = d.querySelectorAll('button, [role="button"]');
             for (const btn of btns) {
@@ -330,19 +392,25 @@ async function handleWhatsAppCall(phone, callType) {
               if (['audio-call', 'video-call', 'call', 'phone'].includes(iconName) ||
                   text.includes('llamar') || text === 'call' || text.includes('voice call')) {
                 btn.click();
-                return { confirmed: true, reason: 'dialog-btn' };
+                return { confirmed: true, reason: 'dialog-btn', text };
               }
             }
           }
-          return { confirmed: false };
+          const allDialogInfo = [...document.querySelectorAll('[role="dialog"]')].map(d => ({
+            text: d.textContent?.substring(0, 200),
+            buttons: [...d.querySelectorAll('button')].map(b => b.textContent?.trim())
+          }));
+          return { confirmed: false, dialogs: allDialogInfo };
         }
       });
       const r = results?.[0]?.result;
-      console.log('[JARVIS] WhatsApp confirm', n, ':', JSON.stringify(r));
+      await logToServer('whatsapp_confirm', { n, result: r });
       if (!r?.confirmed) {
         setTimeout(() => confirmCall(tabId, callType, n + 1), 1500);
       }
-    } catch(e) {}
+    } catch(e) {
+      await logToServer('whatsapp_confirm_error', { n, error: e.message });
+    }
   };
 
   setTimeout(findAndClickCallButton, initialWait);
