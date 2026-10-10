@@ -100,6 +100,20 @@ a { color: var(--primary); }
 
 .time { color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; }
 
+.power-btn {
+    background: none; border: 1px solid var(--accent); color: var(--accent);
+    border-radius: 50%; width: 28px; height: 28px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.3s;
+}
+.power-btn:hover { background: rgba(0,255,136,0.15); }
+.power-btn.off { border-color: var(--danger); color: var(--danger); }
+.power-btn.off:hover { background: rgba(255,68,68,0.15); }
+
+.system-off .status-dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: none; }
+.system-off .chat-main { opacity: 0.5; pointer-events: none; }
+.system-off .mic-btn { opacity: 0.3; pointer-events: none; }
+
 /* Tabs */
 .tab-content { display: none; flex: 1; }
 .tab-content.active { display: flex; flex-direction: column; }

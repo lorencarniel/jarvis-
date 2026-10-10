@@ -22,6 +22,7 @@ const JARVIS = {
     conversationMode: false,
     conversationTimer: null,
     conversationSilenceMs: 5000,
+    systemActive: true,
 
     init() {
         this.cacheDom();
@@ -35,6 +36,7 @@ const JARVIS = {
         this.loadHistory();
         this.startWakeWord();
         setInterval(() => {
+            if (!this.systemActive) return;
             const now = Date.now();
             if (this.commandListening && this.lastStateChange && (now - this.lastStateChange > 20000)) {
                 console.log('[Watchdog] commandListening trabado, reseteando...');
@@ -81,6 +83,8 @@ const JARVIS = {
             memoryList: document.getElementById('memory-list'),
             taskList: document.getElementById('task-list'),
             addTaskBtn: document.getElementById('add-task-btn'),
+            powerBtn: document.getElementById('power-btn'),
+            statusDot: document.getElementById('status-dot'),
         };
     },
 
@@ -404,6 +408,7 @@ const JARVIS = {
                 document.getElementById('provider-openrouter-info').style.display = provider === 'openrouter' ? '' : 'none';
             });
         });
+        this.dom.powerBtn.addEventListener('click', () => this.toggleSystem());
         this.dom.gmailAuthBtn.addEventListener('click', () => this.connectGmail());
         document.getElementById('save-together-btn').addEventListener('click', () => this.saveTogetherKey());
         this.dom.addTaskBtn.addEventListener('click', () => this.addTaskFromForm());
@@ -1058,6 +1063,38 @@ const JARVIS = {
         setTimeout(() => this.startWakeWord(), 500);
     },
 
+    toggleSystem() {
+        this.systemActive = !this.systemActive;
+        const btn = this.dom.powerBtn;
+        if (this.systemActive) {
+            btn.classList.remove('off');
+            btn.classList.add('on');
+            document.querySelector('.hud-container').classList.remove('system-off');
+            this.dom.statusText.textContent = 'SISTEMA ACTIVO';
+            this.addMessage('jarvis', 'Sistema reactivado. Estoy a su disposicion, señor.');
+            this.speak('Sistema reactivado.');
+            setTimeout(() => this.startWakeWord(), 1000);
+        } else {
+            btn.classList.remove('on');
+            btn.classList.add('off');
+            document.querySelector('.hud-container').classList.add('system-off');
+            this.stopSpeaking();
+            if (this.conversationMode) {
+                this.conversationMode = false;
+                if (this.conversationTimer) { clearTimeout(this.conversationTimer); this.conversationTimer = null; }
+            }
+            if (this._followUpRecog) { try { this._followUpRecog.abort(); } catch(e) {} this._followUpRecog = null; }
+            if (this.wakeWordRecog) { try { this.wakeWordRecog.abort(); } catch(e) {} this.wakeWordRecog = null; }
+            this.wakeWordActive = false;
+            this.commandListening = false;
+            if (this.wakeWordRetryTimer) { clearTimeout(this.wakeWordRetryTimer); this.wakeWordRetryTimer = null; }
+            this.reactorState = 'idle';
+            this.dom.arcReactor.classList.remove('speaking', 'listening', 'thinking');
+            this.setWaveAmplitude(0);
+            this.dom.statusText.textContent = 'SISTEMA APAGADO';
+        }
+    },
+
     listenForFollowUp() {
         if (!this.conversationMode) return;
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1093,7 +1130,7 @@ const JARVIS = {
                 try { followUpRecog.abort(); } catch(ex) {}
                 this._followUpRecog = null;
 
-                const endPhrases = ['gracias jarvis', 'gracias yarvis', 'gracias jarbis', 'listo jarvis', 'nada mas', 'nada más', 'eso es todo', 'chau jarvis', 'chau'];
+                const endPhrases = ['gracias jarvis', 'gracias yarvis', 'gracias jarbis', 'listo jarvis', 'nada mas', 'nada más', 'eso es todo', 'chau jarvis', 'chau', 'anda a dormir', 'andá a dormir', 'andate a dormir'];
                 const lower = text.toLowerCase().trim();
                 if (endPhrases.some(p => lower.includes(p))) {
                     console.log('[Conversation] Frase de cierre detectada');
@@ -1529,7 +1566,7 @@ const JARVIS = {
             return;
         }
 
-        const endPhrases = ['gracias jarvis', 'gracias yarvis', 'gracias jarbis', 'gracias', 'listo jarvis', 'nada mas', 'nada más', 'eso es todo', 'chau jarvis', 'chau'];
+        const endPhrases = ['gracias jarvis', 'gracias yarvis', 'gracias jarbis', 'gracias', 'listo jarvis', 'nada mas', 'nada más', 'eso es todo', 'chau jarvis', 'chau', 'anda a dormir', 'andá a dormir', 'andate a dormir'];
         const lowerText = text.toLowerCase().trim();
         const isEndPhrase = this.conversationMode && endPhrases.some(p => lowerText.includes(p));
 
@@ -1615,6 +1652,7 @@ const JARVIS = {
 
     // Wake Word: "Hey Jarvis"
     startWakeWord() {
+        if (!this.systemActive) return;
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR || this.commandListening) return;
 
