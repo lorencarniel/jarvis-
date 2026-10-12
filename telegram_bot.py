@@ -163,6 +163,7 @@ def _is_authorized(update: Update):
 
 _bot_app = None
 _bot_thread = None
+_bot_loop = None
 
 
 def send_notification(text):
@@ -170,11 +171,10 @@ def send_notification(text):
         return False
     try:
         import asyncio
-        loop = _bot_app._loop if hasattr(_bot_app, '_loop') else None
-        if loop and loop.is_running():
+        if _bot_loop and _bot_loop.is_running():
             asyncio.run_coroutine_threadsafe(
                 _bot_app.bot.send_message(chat_id=_authorized_user_id, text=text),
-                loop
+                _bot_loop
             )
         else:
             asyncio.run(_bot_app.bot.send_message(chat_id=_authorized_user_id, text=text))
@@ -205,14 +205,14 @@ def start_bot(token):
         pass
 
     def _run():
-        global _bot_app
+        global _bot_app, _bot_loop
         import asyncio
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+            _bot_loop = loop
 
             _bot_app = Application.builder().token(token).build()
-            _bot_app._loop = loop
 
             _bot_app.add_handler(CommandHandler("start", cmd_start))
             _bot_app.add_handler(CommandHandler("status", cmd_status))
@@ -221,7 +221,7 @@ def start_bot(token):
             _bot_app.add_handler(CommandHandler("emails", cmd_emails))
             _bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-            _safe_log(f"[TELEGRAM] Bot iniciado correctamente")
+            _safe_log("[TELEGRAM] Bot iniciado correctamente")
             loop.run_until_complete(_bot_app.run_polling(drop_pending_updates=True))
         except Exception as e:
             _safe_log(f"[TELEGRAM] Error: {e}")

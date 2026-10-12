@@ -59,6 +59,7 @@ const JARVIS = {
             }
         }, 3000);
         this.startProactivePolling();
+        this.setupWidget();
     },
 
     cacheDom() {
@@ -108,6 +109,7 @@ const JARVIS = {
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+                if (btn.dataset.tab === 'dashboard') this.loadDashboard();
                 if (btn.dataset.tab === 'memory') this.loadMemories();
                 if (btn.dataset.tab === 'tasks') this.loadTasks();
                 if (btn.dataset.tab === 'connections') this.loadConnections();
@@ -910,6 +912,7 @@ const JARVIS = {
         }
         this.ttsAborted = true;
         this.isSpeaking = false;
+        if (typeof JarvisAvatar !== 'undefined') JarvisAvatar.setSpeaking(false);
         if (!this.processingVideo) {
             this.reactorState = 'idle'; this.dom.arcReactor.classList.remove('speaking');
         }
@@ -919,6 +922,7 @@ const JARVIS = {
     speakBrowser(text) {
         this.synth.cancel();
         this.isSpeaking = true;
+        if (typeof JarvisAvatar !== 'undefined') JarvisAvatar.setSpeaking(true);
         this.ttsAborted = false;
         this.lastStateChange = Date.now();
         const u = new SpeechSynthesisUtterance(text);
@@ -950,6 +954,7 @@ const JARVIS = {
 
     async speakEdgeTTS(text) {
         this.isSpeaking = true;
+        if (typeof JarvisAvatar !== 'undefined') JarvisAvatar.setSpeaking(true);
         this.ttsAborted = false;
         this.lastStateChange = Date.now();
         const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
@@ -1009,6 +1014,7 @@ const JARVIS = {
 
     finishSpeaking() {
         this.isSpeaking = false;
+        if (typeof JarvisAvatar !== 'undefined') JarvisAvatar.setSpeaking(false);
         this.commandListening = false;
         if (!this.processingVideo) {
             this.reactorState = 'idle';
@@ -2035,6 +2041,156 @@ const JARVIS = {
         } catch(e) {
             status.innerHTML = '<span class="status-err">Error de conexion</span>';
         }
+    },
+
+    // ---- Dashboard ----
+    _dashInterval: null,
+
+    async loadDashboard() {
+        try {
+            const res = await fetch(`${API}/dashboard`);
+            const d = await res.json();
+
+            const hour = new Date().getHours();
+            const greet = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+            const el = id => document.getElementById(id);
+
+            el('dash-hello').textContent = `${greet}, señor`;
+            el('dash-date').textContent = d.date || new Date().toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
+
+            if (d.weather) {
+                el('dash-temp').textContent = `${d.weather.temp}°`;
+                el('dash-weather-desc').textContent = d.weather.desc || '';
+                el('dash-weather-detail').textContent = `Sensación ${d.weather.feels}° · Humedad ${d.weather.humidity}% · Viento ${d.weather.wind} km/h`;
+            }
+
+            const tasksList = el('dash-tasks-list');
+            el('dash-tasks-count').textContent = d.tasks_count || 0;
+            if (d.tasks && d.tasks.length) {
+                tasksList.innerHTML = d.tasks.map(t =>
+                    `<div class="dash-list-item"><span class="dash-dot"></span>${this.esc(t.description || t.title || t.text || '')}</div>`
+                ).join('');
+            } else {
+                tasksList.innerHTML = '<div class="dash-list-item dash-dim">Sin tareas pendientes</div>';
+            }
+
+            const eventsList = el('dash-events-list');
+            if (d.events && d.events.length) {
+                eventsList.innerHTML = d.events.map(e =>
+                    `<div class="dash-list-item"><strong>${this.esc(e.time || '')}</strong> ${this.esc(e.title || '')}</div>`
+                ).join('');
+            } else {
+                eventsList.innerHTML = '<div class="dash-list-item dash-dim">Sin eventos hoy</div>';
+            }
+
+            const emailsList = el('dash-emails-list');
+            el('dash-emails-count').textContent = d.emails_count || 0;
+            if (d.emails && d.emails.length) {
+                emailsList.innerHTML = d.emails.map(e =>
+                    `<div class="dash-list-item"><strong>${this.esc(e.from)}</strong><br><span class="dash-dim">${this.esc(e.subject)}</span></div>`
+                ).join('');
+            } else {
+                emailsList.innerHTML = '<div class="dash-list-item dash-dim">Sin emails recientes</div>';
+            }
+
+            el('dash-conversations').textContent = d.conversation_count || 0;
+            el('dash-memories').textContent = d.memory_count || 0;
+            el('dash-sys-status').textContent = 'Online';
+
+        } catch(e) {
+            console.error('[Dashboard] Error:', e);
+        }
+
+        if (!this._dashInterval) {
+            this._dashInterval = setInterval(() => {
+                const dashTab = document.getElementById('tab-dashboard');
+                if (dashTab && dashTab.classList.contains('active')) {
+                    this.loadDashboard();
+                }
+            }, 60000);
+        }
+    },
+
+    // ---- Floating Widget ----
+    setupWidget() {
+        const toggle = document.getElementById('widget-float-toggle');
+        const panel = document.getElementById('widget-float-panel');
+        const close = document.getElementById('widget-float-close');
+        const input = document.getElementById('widget-text-input');
+        const send = document.getElementById('widget-send-btn');
+        const mic = document.getElementById('widget-mic-btn');
+        const header = document.getElementById('widget-float-header');
+        if (!toggle || !panel) return;
+
+        toggle.addEventListener('click', () => {
+            panel.classList.toggle('hidden');
+            if (!panel.classList.contains('hidden')) input.focus();
+        });
+        close.addEventListener('click', () => panel.classList.add('hidden'));
+
+        const sendWidget = async () => {
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+            const resp = document.getElementById('widget-response');
+            resp.textContent = 'Procesando...';
+            try {
+                const res = await fetch(`${API}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await res.json();
+                resp.textContent = data.text || 'Sin respuesta';
+                this.speak(data.text || '');
+            } catch(e) {
+                resp.textContent = 'Error de conexión';
+            }
+        };
+
+        send.addEventListener('click', sendWidget);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') sendWidget(); });
+
+        mic.addEventListener('click', () => {
+            if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recog = new SR();
+            recog.lang = 'es-AR';
+            recog.interimResults = false;
+            recog.onresult = (ev) => {
+                const t = ev.results[0][0].transcript;
+                input.value = t;
+                sendWidget();
+            };
+            recog.start();
+        });
+
+        // Draggable
+        let dragging = false, dx = 0, dy = 0;
+        header.addEventListener('mousedown', e => {
+            dragging = true;
+            const rect = panel.getBoundingClientRect();
+            dx = e.clientX - rect.left;
+            dy = e.clientY - rect.top;
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', e => {
+            if (!dragging) return;
+            panel.style.left = (e.clientX - dx) + 'px';
+            panel.style.top = (e.clientY - dy) + 'px';
+            panel.style.right = 'auto';
+            panel.style.bottom = 'auto';
+        });
+        document.addEventListener('mouseup', () => dragging = false);
+
+        setInterval(() => {
+            const dot = document.getElementById('widget-status-dot');
+            const text = document.getElementById('widget-status-text');
+            const clock = document.getElementById('widget-clock');
+            if (dot) dot.style.background = this.systemActive ? '#00ff88' : '#ff4444';
+            if (text) text.textContent = this.systemActive ? 'Online' : 'Offline';
+            if (clock) clock.textContent = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+        }, 1000);
     }
 };
 

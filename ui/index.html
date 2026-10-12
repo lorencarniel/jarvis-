@@ -17,6 +17,7 @@
             </div>
             <div class="header-right">
                 <div class="tab-nav">
+                    <button class="tab-btn" data-tab="dashboard">Dashboard</button>
                     <button class="tab-btn active" data-tab="chat">Chat</button>
                     <button class="tab-btn" data-tab="memory">Memoria</button>
                     <button class="tab-btn" data-tab="tasks">Tareas</button>
@@ -35,6 +36,79 @@
                 </div>
             </div>
         </header>
+
+        <!-- DASHBOARD TAB -->
+        <div class="tab-content" id="tab-dashboard">
+            <div class="dashboard-layout">
+                <div class="dash-greeting" id="dash-greeting">
+                    <h1 id="dash-hello">Buenas tardes, señor</h1>
+                    <p id="dash-date" class="dash-date"></p>
+                </div>
+                <div class="dash-grid">
+                    <div class="dash-card dash-weather" id="dash-weather">
+                        <div class="dash-card-header">
+                            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z" fill="currentColor"/></svg>
+                            <span>CLIMA</span>
+                        </div>
+                        <div class="dash-weather-body">
+                            <span class="dash-temp" id="dash-temp">--°</span>
+                            <div class="dash-weather-info">
+                                <span id="dash-weather-desc">Cargando...</span>
+                                <span id="dash-weather-detail" class="dash-dim"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dash-card dash-tasks" id="dash-tasks-card">
+                        <div class="dash-card-header">
+                            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z" fill="currentColor"/></svg>
+                            <span>TAREAS PENDIENTES</span>
+                            <span class="dash-badge" id="dash-tasks-count">0</span>
+                        </div>
+                        <div class="dash-list" id="dash-tasks-list"></div>
+                    </div>
+                    <div class="dash-card dash-calendar">
+                        <div class="dash-card-header">
+                            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z" fill="currentColor"/></svg>
+                            <span>HOY</span>
+                        </div>
+                        <div class="dash-list" id="dash-events-list"></div>
+                    </div>
+                    <div class="dash-card dash-emails">
+                        <div class="dash-card-header">
+                            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="currentColor"/></svg>
+                            <span>EMAILS</span>
+                            <span class="dash-badge" id="dash-emails-count">0</span>
+                        </div>
+                        <div class="dash-list" id="dash-emails-list"></div>
+                    </div>
+                    <div class="dash-card dash-stats">
+                        <div class="dash-card-header">
+                            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" fill="currentColor"/></svg>
+                            <span>SISTEMA</span>
+                        </div>
+                        <div class="dash-stats-grid">
+                            <div class="dash-stat"><span class="dash-stat-val" id="dash-conversations">0</span><span class="dash-stat-label">Conversaciones</span></div>
+                            <div class="dash-stat"><span class="dash-stat-val" id="dash-memories">0</span><span class="dash-stat-label">Memorias</span></div>
+                            <div class="dash-stat"><span class="dash-stat-val" id="dash-sys-status">Online</span><span class="dash-stat-label">Estado</span></div>
+                        </div>
+                    </div>
+                    <div class="dash-card dash-quick">
+                        <div class="dash-card-header">
+                            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M7 18h2V6H7v12zm4-12v12h2V6h-2zm-8 8h2v-4H3v4zm12-6v8h2V8h-2zm4 2v4h2v-4h-2z" fill="currentColor"/></svg>
+                            <span>ACCIONES RAPIDAS</span>
+                        </div>
+                        <div class="dash-quick-grid">
+                            <button class="dash-quick-btn" onclick="JARVIS.processInput('buenos dias')">Briefing</button>
+                            <button class="dash-quick-btn" onclick="JARVIS.processInput('leeme mis emails')">Leer Emails</button>
+                            <button class="dash-quick-btn" onclick="JARVIS.processInput('que tengo hoy en el calendario')">Agenda</button>
+                            <button class="dash-quick-btn" onclick="JARVIS.processInput('mis tareas pendientes')">Tareas</button>
+                            <button class="dash-quick-btn" onclick="JARVIS.processInput('que noticias hay hoy')">Noticias</button>
+                            <button class="dash-quick-btn" onclick="JARVIS.processInput('modo estudio')">Estudiar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- CHAT TAB -->
         <div class="tab-content active" id="tab-chat">
@@ -63,6 +137,9 @@
                 </div>
 
                 <div class="chat-main">
+                    <div class="avatar-3d-wrap" id="avatar-3d-wrap">
+                        <canvas id="avatar3d" width="300" height="300"></canvas>
+                    </div>
                     <div class="arc-reactor" id="arc-reactor">
                         <canvas id="reactorCanvas" width="840" height="840"></canvas>
                     </div>
@@ -266,6 +343,38 @@
         </div>
     </div>
 
-    <script src="jarvis.js?v=9.0"></script>
+    <!-- Floating Widget Toggle -->
+    <button class="widget-float-toggle" id="widget-float-toggle" title="Mini Widget">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm0 16H5V5h14v14zM7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z" fill="currentColor"/></svg>
+    </button>
+
+    <!-- Mini Floating Widget Panel -->
+    <div class="widget-float-panel hidden" id="widget-float-panel">
+        <div class="widget-float-header" id="widget-float-header">
+            <span>JARVIS Mini</span>
+            <button class="widget-float-close" id="widget-float-close">&times;</button>
+        </div>
+        <div class="widget-float-body">
+            <div class="widget-float-status">
+                <span class="widget-dot" id="widget-status-dot"></span>
+                <span id="widget-status-text">Online</span>
+                <span id="widget-clock"></span>
+            </div>
+            <div class="widget-float-input">
+                <input type="text" id="widget-text-input" placeholder="Comando rápido..." autocomplete="off">
+                <button id="widget-send-btn">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
+                </button>
+                <button id="widget-mic-btn" title="Hablar">
+                    <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/></svg>
+                </button>
+            </div>
+            <div class="widget-float-response" id="widget-response"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="avatar3d.js?v=1.0"></script>
+    <script src="jarvis.js?v=10.0"></script>
 </body>
 </html>

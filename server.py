@@ -635,6 +635,206 @@ def api_gmail_emails():
         return jsonify({"error": str(e)}), 500
 
 
+# --- Dashboard ---
+
+@app.route("/api/dashboard", methods=["GET"])
+def api_dashboard():
+    import urllib.request
+    from urllib.parse import quote
+    from datetime import datetime
+    data = {}
+
+    # Tasks
+    try:
+        tasks = mem.get_tasks(status="pending")
+        data["tasks"] = tasks[:5] if tasks else []
+        data["tasks_count"] = len(tasks) if tasks else 0
+    except Exception:
+        data["tasks"] = []
+        data["tasks_count"] = 0
+
+    # Weather
+    try:
+        city = "Resistencia"
+        url = f"https://wttr.in/{quote(city)}?format=j1"
+        req = urllib.request.Request(url, headers={"User-Agent": "curl/7.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            w = json.loads(resp.read().decode("utf-8"))
+        current = w.get("current_condition", [{}])[0]
+        data["weather"] = {
+            "city": city,
+            "temp": current.get("temp_C", "?"),
+            "feels": current.get("FeelsLikeC", "?"),
+            "desc": current.get("lang_es", [{}])[0].get("value", current.get("weatherDesc", [{}])[0].get("value", "?")),
+            "humidity": current.get("humidity", "?"),
+            "wind": current.get("windspeedKmph", "?"),
+        }
+    except Exception as e:
+        data["weather"] = {"city": "?", "temp": "?", "desc": str(e)[:50]}
+
+    # Calendar
+    try:
+        ical_url = mem.get_config("google_calendar_url")
+        if ical_url:
+            req = urllib.request.Request(ical_url, headers={"User-Agent": "JARVIS/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                ical_data = resp.read().decode("utf-8", errors="replace")
+            today = datetime.now().strftime("%Y%m%d")
+            events = []
+            in_event = False
+            current_ev = {}
+            for line in ical_data.split("\n"):
+                line = line.strip()
+                if line == "BEGIN:VEVENT":
+                    in_event = True
+                    current_ev = {}
+                elif line == "END:VEVENT":
+                    in_event = False
+                    dtstart = current_ev.get("DTSTART", "")
+                    if today in dtstart:
+                        summary = current_ev.get("SUMMARY", "Sin titulo")
+                        time_str = ""
+                        if "T" in dtstart:
+                            t = dtstart.split("T")[1][:4]
+                            time_str = f"{t[:2]}:{t[2:4]}"
+                        events.append({"time": time_str, "title": summary})
+                elif in_event and ":" in line:
+                    k, v = line.split(":", 1)
+                    k = k.split(";")[0]
+                    current_ev[k] = v
+            data["events"] = events
+        else:
+            data["events"] = []
+    except Exception:
+        data["events"] = []
+
+    # Emails
+    try:
+        if mem.get_config("gmail_address"):
+            result = gmail.read_emails(3)
+            if isinstance(result, dict) and "emails" in result:
+                data["emails"] = [{"from": e.get("from", "?"), "subject": e.get("subject", "Sin asunto")} for e in result["emails"][:3]]
+                data["emails_count"] = result.get("total", len(result["emails"]))
+            else:
+                data["emails"] = []
+                data["emails_count"] = 0
+        else:
+            data["emails"] = []
+            data["emails_count"] = 0
+    except Exception:
+        data["emails"] = []
+        data["emails_count"] = 0
+
+    # System
+    data["memory_count"] = mem.get_config("memory_count") or 0
+    try:
+        data["memory_count"] = len(mem.search_memories("", limit=999))
+    except Exception:
+        pass
+    data["conversation_count"] = mem.get_config("conversation_count") or 0
+    data["time"] = datetime.now().strftime("%H:%M")
+    data["date"] = datetime.now().strftime("%A %d de %B").capitalize()
+    data["greeting"] = "Buenos dias" if datetime.now().hour < 12 else "Buenas tardes" if datetime.now().hour < 19 else "Buenas noches"
+
+    return jsonify(data)
+
+
+# --- Presentation Generator ---
+
+@app.route("/api/presentation", methods=["POST"])
+def api_presentation():
+    try:
+        from pptx import Presentation
+        from pptx.util import Inches, Pt, Emu
+        from pptx.dml.color import RGBColor
+        from pptx.enum.text import PP_ALIGN
+        import os, tempfile
+
+        data = request.json or {}
+        title = data.get("title", "Presentación")
+        slides_data = data.get("slides", [])
+
+        prs = Presentation()
+        prs.slide_width = Inches(13.333)
+        prs.slide_height = Inches(7.5)
+
+        # Title slide
+        slide_layout = prs.slide_layouts[6]  # blank
+        slide = prs.slides.add_slide(slide_layout)
+        bg = slide.background
+        fill = bg.fill
+        fill.solid()
+        fill.fore_color.rgb = RGBColor(0x0a, 0x0a, 0x1a)
+
+        txBox = slide.shapes.add_textbox(Inches(1), Inches(2.5), Inches(11), Inches(2))
+        tf = txBox.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = title
+        p.font.size = Pt(44)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(0xff, 0x95, 0x00)
+        p.alignment = PP_ALIGN.CENTER
+
+        p2 = tf.add_paragraph()
+        p2.text = "Generado por J.A.R.V.I.S."
+        p2.font.size = Pt(18)
+        p2.font.color.rgb = RGBColor(0x88, 0x88, 0x99)
+        p2.alignment = PP_ALIGN.CENTER
+
+        for sd in slides_data:
+            slide = prs.slides.add_slide(slide_layout)
+            bg = slide.background
+            fill = bg.fill
+            fill.solid()
+            fill.fore_color.rgb = RGBColor(0x0a, 0x0a, 0x1a)
+
+            txTitle = slide.shapes.add_textbox(Inches(0.8), Inches(0.5), Inches(11.5), Inches(1))
+            tf = txTitle.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            p.text = sd.get("title", "")
+            p.font.size = Pt(32)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(0xff, 0x95, 0x00)
+
+            content = sd.get("content", "")
+            if isinstance(content, list):
+                lines = content
+            else:
+                lines = [l.strip() for l in content.split("\n") if l.strip()]
+
+            txBody = slide.shapes.add_textbox(Inches(1), Inches(1.8), Inches(11), Inches(5))
+            tf2 = txBody.text_frame
+            tf2.word_wrap = True
+            for i, line in enumerate(lines):
+                p = tf2.paragraphs[0] if i == 0 else tf2.add_paragraph()
+                p.text = line
+                p.font.size = Pt(20)
+                p.font.color.rgb = RGBColor(0xdd, 0xdd, 0xee)
+                p.space_after = Pt(8)
+
+        out_dir = os.path.join(os.path.dirname(__file__), "ui", "downloads")
+        os.makedirs(out_dir, exist_ok=True)
+        fname = title.replace(" ", "_")[:30] + ".pptx"
+        fpath = os.path.join(out_dir, fname)
+        prs.save(fpath)
+
+        return jsonify({"success": True, "file": f"/downloads/{fname}", "path": fpath})
+    except ImportError:
+        return jsonify({"error": "python-pptx no instalado. Ejecutar: pip install python-pptx"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Serve downloads
+@app.route("/downloads/<path:filename>")
+def serve_download(filename):
+    import os
+    downloads_dir = os.path.join(os.path.dirname(__file__), "ui", "downloads")
+    return send_from_directory(downloads_dir, filename, as_attachment=True)
+
+
 # --- Proactive notifications ---
 
 @app.route("/api/proactive", methods=["GET"])

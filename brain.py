@@ -107,6 +107,7 @@ TELEGRAM: Podes enviar notificaciones al celular del usuario con send_telegram. 
 Podes leer paginas web con read_webpage para resumirlas o analizarlas.
 Podes controlar el volumen con control_volume (up/down/mute/unmute/set).
 Podes controlar el brillo con control_brightness (solo notebooks).
+Podes crear presentaciones PowerPoint con create_presentation. Cuando el usuario diga "haceme una presentacion", "arma un powerpoint", "haceme slides sobre X", genera los slides con titulo y contenido y usa la herramienta. El archivo .pptx se genera y queda disponible para descargar.
 En el briefing diario, SIEMPRE incluir: clima actual, noticias principales, y tareas pendientes.
 
 CONTROL DE PC AVANZADO:
@@ -858,6 +859,29 @@ TOOLS = [
         }
     },
     {
+        "name": "create_presentation",
+        "description": "Crear una presentacion PowerPoint (.pptx). El usuario puede pedir 'haceme una presentacion sobre X', 'arma un powerpoint de Y'. Genera slides con titulo y contenido. El archivo se descarga automaticamente.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Titulo de la presentacion"},
+                "slides": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string", "description": "Titulo del slide"},
+                            "content": {"type": "string", "description": "Contenido del slide, cada linea separada por \\n"}
+                        },
+                        "required": ["title", "content"]
+                    },
+                    "description": "Lista de slides con titulo y contenido"
+                }
+            },
+            "required": ["title", "slides"]
+        }
+    },
+    {
         "name": "browser_tabs",
         "description": "Ver las pestañas abiertas en Chrome del usuario. USAR SIEMPRE antes de abrir un sitio web para ver si ya esta abierto. Devuelve lista de pestañas con URL, titulo y si tiene audio.",
         "input_schema": {"type": "object", "properties": {}}
@@ -1117,6 +1141,9 @@ def _process_tool_call_inner(tool_name, tool_input):
 
     elif tool_name == "send_telegram":
         return _send_telegram(tool_input["text"])
+
+    elif tool_name == "create_presentation":
+        return _create_presentation(tool_input.get("title", "Presentación"), tool_input.get("slides", []))
 
     elif tool_name == "browser_tabs":
         return _browser_tabs()
@@ -1953,6 +1980,24 @@ def _send_telegram(text):
         return "No se pudo enviar. Verificar que Telegram esta configurado y que el usuario hizo /start en el bot."
     except Exception as e:
         return f"Error enviando Telegram: {e}"
+
+
+def _create_presentation(title, slides):
+    import urllib.request
+    try:
+        payload = json.dumps({"title": title, "slides": slides}).encode("utf-8")
+        req = urllib.request.Request(
+            "http://localhost:8080/api/presentation",
+            data=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        if data.get("success"):
+            return f"Presentacion creada: {title} ({len(slides)} slides). El archivo se puede descargar desde la interfaz. Ruta: {data.get('path', '')}"
+        return f"Error creando presentacion: {data.get('error', 'desconocido')}"
+    except Exception as e:
+        return f"Error creando presentacion: {e}"
 
 
 def _list_discord_channels():
