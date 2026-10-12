@@ -74,7 +74,7 @@ const JARVIS = {
             textInput: document.getElementById('text-input'),
             micBtn: document.getElementById('mic-btn'),
             sendBtn: document.getElementById('send-btn'),
-            arcReactor: document.getElementById('arc-reactor'),
+            arcReactor: document.getElementById('arc-reactor') || document.createElement('div'),
             waveCanvas: document.getElementById('waveCanvas'),
             apiKeyInput: document.getElementById('api-key'),
             saveKeyBtn: document.getElementById('save-key-btn'),
