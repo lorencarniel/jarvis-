@@ -872,6 +872,19 @@ def api_presentation():
         fpath = os.path.join(out_dir, fname)
         prs.save(fpath)
 
+        import threading
+        def _open_pptx():
+            try:
+                os.startfile(os.path.normpath(fpath))
+                _log(f"[PRES] Opened: {fpath}")
+            except Exception as ex:
+                _log(f"[PRES] startfile failed: {ex}")
+                try:
+                    subprocess.Popen(["cmd", "/c", "start", "", os.path.normpath(fpath)], creationflags=0x00000008)
+                except Exception:
+                    pass
+        threading.Thread(target=_open_pptx, daemon=True).start()
+
         return jsonify({"success": True, "file": f"/downloads/{fname}", "path": fpath})
     except ImportError:
         return jsonify({"error": "python-pptx no instalado. Ejecutar: pip install python-pptx"}), 500

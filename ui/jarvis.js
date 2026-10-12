@@ -1835,6 +1835,10 @@ const JARVIS = {
         let escaped = this.esc(str);
         escaped = escaped.replace(/\n/g, '<br>');
         escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        escaped = escaped.replace(/Ruta:\s*([^\s<]+\.pptx)/gi, (m, path) => {
+            const fname = path.split(/[/\\]/).pop();
+            return `<a href="/downloads/${fname}" download class="download-btn" style="display:inline-block;margin:8px 0;padding:8px 16px;background:#ff9500;color:#0a0a1a;border-radius:6px;text-decoration:none;font-weight:bold;">DESCARGAR ${fname}</a>`;
+        });
         return escaped;
     },
 
