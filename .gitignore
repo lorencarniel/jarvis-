@@ -44,5 +44,15 @@ setup_whatsapp.py
 # Audio temporal de TTS
 *.mp3
 
+# Modelos TTS (se descargan con setup)
+tts_models/*.onnx
+
+# Downloads generados
+ui/downloads/
+
+# Test files
+test_*.wav
+test_*.mp3
+
 # Autostart (configuracion local del usuario)
 autostart.bat

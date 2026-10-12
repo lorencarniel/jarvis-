@@ -116,20 +116,63 @@ def api_history():
 
 # --- Text-to-Speech (Edge TTS) ---
 
+_piper_voice = None
+
+def _get_piper_voice():
+    global _piper_voice
+    if _piper_voice is None:
+        try:
+            from piper import PiperVoice
+            model_dir = Path(__file__).parent / "tts_models"
+            model_path = model_dir / "es_MX-claude-high.onnx"
+            config_path = model_dir / "es_MX-claude-high.onnx.json"
+            if model_path.exists():
+                _piper_voice = PiperVoice.load(str(model_path), str(config_path))
+                _log("[TTS] Piper voice loaded")
+        except Exception as e:
+            _log(f"[TTS] Piper load failed: {e}")
+    return _piper_voice
+
+
 @app.route("/api/tts", methods=["POST"])
 def api_tts():
-    import asyncio
     data = request.json
     text = data.get("text", "").strip()
     if not text:
         return jsonify({"error": "Sin texto"}), 400
 
-    voice = data.get("voice", "es-AR-TomasNeural")
     audio_path = Path(__file__).parent / "ui" / "tts_output.mp3"
+    wav_path = Path(__file__).parent / "ui" / "tts_output.wav"
 
-    # Try edge-tts first
+    # 1) Piper TTS (neural, local, realistic)
+    piper = _get_piper_voice()
+    if piper:
+        try:
+            import numpy as np, wave, subprocess
+            all_audio = []
+            for chunk in piper.synthesize(text):
+                all_audio.append(chunk.audio_float_array)
+            audio = np.concatenate(all_audio)
+            audio_int16 = (audio * 32767).astype(np.int16)
+            with wave.open(str(wav_path), 'wb') as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(piper.config.sample_rate)
+                wf.writeframes(audio_int16.tobytes())
+            subprocess.run([
+                "ffmpeg", "-y", "-i", str(wav_path),
+                "-ar", "44100", "-ac", "1", "-b:a", "128k",
+                str(audio_path)
+            ], capture_output=True, timeout=15)
+            if audio_path.exists() and audio_path.stat().st_size > 100:
+                return send_from_directory(str(UI_DIR), "tts_output.mp3", mimetype="audio/mpeg")
+        except Exception as e:
+            _log(f"[TTS] Piper error: {e}")
+
+    # 2) Edge TTS fallback
     try:
-        import edge_tts
+        import asyncio, edge_tts
+        voice = data.get("voice", "es-AR-TomasNeural")
         async def generate():
             communicate = edge_tts.Communicate(text, voice, rate="+5%", pitch="-2Hz")
             await communicate.save(str(audio_path))
@@ -138,7 +181,7 @@ def api_tts():
     except Exception:
         pass
 
-    # Fallback to gTTS
+    # 3) gTTS fallback
     try:
         from gtts import gTTS
         tts = gTTS(text, lang="es", tld="com.ar")
