@@ -103,6 +103,7 @@ Podes leer y escribir el portapapeles con clipboard_read y clipboard_write.
 Podes tomar capturas de pantalla con take_screenshot (se guarda en Desktop).
 Podes enviar mensajes de WhatsApp con send_whatsapp (se envia automaticamente via la extension de Chrome, no hay que copiar ni pegar nada).
 DISCORD: Si el bot de Discord esta configurado, podes enviar mensajes con send_discord, leer mensajes con read_discord, y listar servidores/canales con list_discord_channels. SIEMPRE usa list_discord_channels primero para obtener el channel_id si no lo tenes.
+TELEGRAM: Podes enviar notificaciones al celular del usuario con send_telegram. Usar para recordatorios, alertas, o cuando el usuario no esta en la PC. El usuario tambien puede mandarte mensajes desde Telegram y vos los procesas normalmente.
 Podes leer paginas web con read_webpage para resumirlas o analizarlas.
 Podes controlar el volumen con control_volume (up/down/mute/unmute/set).
 Podes controlar el brillo con control_brightness (solo notebooks).
@@ -846,6 +847,17 @@ TOOLS = [
         "input_schema": {"type": "object", "properties": {}}
     },
     {
+        "name": "send_telegram",
+        "description": "Enviar un mensaje/notificacion al usuario via Telegram. Usar para avisar cosas cuando el usuario no esta en la PC (recordatorios, alertas, confirmaciones). El mensaje le llega al celular.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Texto del mensaje a enviar"}
+            },
+            "required": ["text"]
+        }
+    },
+    {
         "name": "browser_tabs",
         "description": "Ver las pestañas abiertas en Chrome del usuario. USAR SIEMPRE antes de abrir un sitio web para ver si ya esta abierto. Devuelve lista de pestañas con URL, titulo y si tiene audio.",
         "input_schema": {"type": "object", "properties": {}}
@@ -1102,6 +1114,9 @@ def _process_tool_call_inner(tool_name, tool_input):
 
     elif tool_name == "list_discord_channels":
         return _list_discord_channels()
+
+    elif tool_name == "send_telegram":
+        return _send_telegram(tool_input["text"])
 
     elif tool_name == "browser_tabs":
         return _browser_tabs()
@@ -1920,6 +1935,24 @@ def _get_discord_headers():
     if not token:
         return None, "Discord no configurado. Decile al usuario que vaya a la pestaña Conexiones y configure el Bot Token de Discord."
     return {"Authorization": f"Bot {token}", "Content-Type": "application/json"}, None
+
+
+def _send_telegram(text):
+    import urllib.request
+    try:
+        payload = json.dumps({"text": text}).encode("utf-8")
+        req = urllib.request.Request(
+            "http://localhost:8080/api/telegram/send",
+            data=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        if data.get("success"):
+            return f"Notificacion enviada por Telegram: {text[:100]}"
+        return "No se pudo enviar. Verificar que Telegram esta configurado y que el usuario hizo /start en el bot."
+    except Exception as e:
+        return f"Error enviando Telegram: {e}"
 
 
 def _list_discord_channels():

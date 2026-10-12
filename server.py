@@ -41,6 +41,7 @@ import memory as mem
 import brain
 import gmail_integration as gmail
 import video_processor as vidproc
+import telegram_bot
 
 try:
     from winotify import Notification
@@ -261,8 +262,8 @@ def api_connections():
             {
                 "id": "telegram",
                 "name": "Telegram",
-                "description": "Mensajes y notificaciones via bot",
-                "category": "available",
+                "description": "Control remoto desde el celular + notificaciones",
+                "category": "active" if mem.get_config("telegram_bot_token") else "available",
                 "connected": bool(mem.get_config("telegram_bot_token")),
                 "icon": "telegram"
             },
@@ -440,6 +441,10 @@ def api_set_connection():
     if not value:
         return jsonify({"error": "Valor vacio"}), 400
     mem.set_config(key, value)
+    if key == "telegram_bot_token":
+        telegram_bot.stop_bot()
+        telegram_bot.start_bot(value)
+        _log("[TELEGRAM] Bot reiniciado con nuevo token")
     return jsonify({"success": True})
 
 
@@ -876,6 +881,15 @@ def api_browser_command_post():
     return jsonify({"ok": True, "queued": len(browser_commands)})
 
 
+@app.route("/api/telegram/send", methods=["POST"])
+def api_telegram_send():
+    data = request.json
+    text = data.get("text", "").strip()
+    if not text:
+        return jsonify({"error": "Sin texto"}), 400
+    ok = telegram_bot.send_notification(text)
+    return jsonify({"success": ok})
+
 whatsapp_messages_store = []
 
 @app.route("/api/browser/whatsapp-messages", methods=["GET"])
@@ -1221,6 +1235,13 @@ def main():
        Para detener: Ctrl+C
     ==========================================
     """)
+
+    tg_token = mem.get_config("telegram_bot_token")
+    if tg_token:
+        telegram_bot.start_bot(tg_token)
+        _log("[TELEGRAM] Bot de Telegram iniciado")
+    else:
+        _log("[TELEGRAM] Sin token, bot no iniciado. Configurar en Conexiones.")
 
     threading.Timer(1.5, lambda: open_in_chrome(f"http://localhost:{port}")).start()
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
