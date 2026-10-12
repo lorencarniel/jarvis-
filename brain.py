@@ -1998,7 +1998,11 @@ def _create_presentation(title, slides):
             fpath = data.get("path", "")
             if fpath and os.path.exists(fpath):
                 try:
-                    os.startfile(fpath)
+                    import subprocess
+                    subprocess.Popen(
+                        ["powershell", "-WindowStyle", "Hidden", "-Command", f'Start-Process "{fpath}"'],
+                        creationflags=0x00000008
+                    )
                 except Exception:
                     pass
             return f"Presentacion creada y abierta: {title} ({len(slides)} slides). Ruta: {fpath}"

@@ -1361,12 +1361,11 @@ def execute_actions(actions):
             elif act == "open_file":
                 fpath = action["path"]
                 _log(f"[ACTION] Abriendo archivo: {fpath}")
-                try:
-                    os.startfile(fpath)
-                except Exception as e2:
-                    _log(f"[ACTION] os.startfile falló: {e2}, intentando subprocess")
-                    import subprocess
-                    subprocess.Popen(["cmd", "/c", "start", "", fpath], shell=True)
+                import subprocess
+                subprocess.Popen(
+                    ["powershell", "-WindowStyle", "Hidden", "-Command", f'Start-Process "{fpath}"'],
+                    creationflags=0x00000008
+                )
             elif act == "read_emails":
                 pass
         except Exception as e:
