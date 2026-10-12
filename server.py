@@ -127,13 +127,22 @@ def api_tts():
     voice = data.get("voice", "es-AR-TomasNeural")
     audio_path = Path(__file__).parent / "ui" / "tts_output.mp3"
 
+    # Try edge-tts first
     try:
         import edge_tts
         async def generate():
             communicate = edge_tts.Communicate(text, voice, rate="+5%", pitch="-2Hz")
             await communicate.save(str(audio_path))
-
         asyncio.run(generate())
+        return send_from_directory(str(UI_DIR), "tts_output.mp3", mimetype="audio/mpeg")
+    except Exception:
+        pass
+
+    # Fallback to gTTS
+    try:
+        from gtts import gTTS
+        tts = gTTS(text, lang="es", tld="com.ar")
+        tts.save(str(audio_path))
         return send_from_directory(str(UI_DIR), "tts_output.mp3", mimetype="audio/mpeg")
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1350,7 +1359,14 @@ def execute_actions(actions):
             elif act == "send_email":
                 gmail.send_email(action["to"], action["subject"], action["body"])
             elif act == "open_file":
-                os.startfile(action["path"])
+                fpath = action["path"]
+                _log(f"[ACTION] Abriendo archivo: {fpath}")
+                try:
+                    os.startfile(fpath)
+                except Exception as e2:
+                    _log(f"[ACTION] os.startfile falló: {e2}, intentando subprocess")
+                    import subprocess
+                    subprocess.Popen(["cmd", "/c", "start", "", fpath], shell=True)
             elif act == "read_emails":
                 pass
         except Exception as e:
