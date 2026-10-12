@@ -1997,14 +1997,16 @@ def _create_presentation(title, slides):
         if data.get("success"):
             fpath = data.get("path", "")
             if fpath and os.path.exists(fpath):
-                try:
-                    import subprocess
-                    subprocess.Popen(
-                        ["powershell", "-WindowStyle", "Hidden", "-Command", f'Start-Process "{fpath}"'],
-                        creationflags=0x00000008
-                    )
-                except Exception:
-                    pass
+                import threading
+                def _open():
+                    try:
+                        os.startfile(os.path.normpath(fpath))
+                    except Exception:
+                        try:
+                            subprocess.Popen(["cmd", "/c", "start", "", os.path.normpath(fpath)], creationflags=0x00000008)
+                        except Exception:
+                            pass
+                threading.Thread(target=_open, daemon=True).start()
             return f"Presentacion creada y abierta: {title} ({len(slides)} slides). Ruta: {fpath}"
         return f"Error creando presentacion: {data.get('error', 'desconocido')}"
     except Exception as e:

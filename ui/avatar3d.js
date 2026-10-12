@@ -237,7 +237,7 @@ const JarvisAvatar = {
             this.head.rotation.y = Math.sin(t * 0.4) * 0.25;
             this.head.rotation.x = Math.sin(t * 0.25) * 0.08;
 
-            const pulse = 1 + sp * 0.12 * Math.sin(t * 10);
+            const pulse = 1 + sp * 0.03 * Math.sin(t * 6);
             this.head.scale.set(pulse, pulse, pulse);
 
             this.head.material.opacity = 0.18 + sp * 0.12;
@@ -271,7 +271,7 @@ const JarvisAvatar = {
             if (i < 5) {
                 ring.rotation.z = t * (0.15 + i * 0.08) * (i % 2 ? 1 : -1);
                 ring.rotation.x += Math.sin(t * 0.5 + i) * 0.001;
-                const rs = 1 + sp * 0.06 * Math.sin(t * 8 + i * 1.2);
+                const rs = 1 + sp * 0.02 * Math.sin(t * 5 + i * 1.2);
                 ring.scale.set(rs, rs, rs);
                 ring.material.opacity = (0.35 - i * 0.04) + sp * 0.15;
             } else {

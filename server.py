@@ -124,8 +124,8 @@ def _get_piper_voice():
         try:
             from piper import PiperVoice
             model_dir = Path(__file__).parent / "tts_models"
-            model_path = model_dir / "es_MX-claude-high.onnx"
-            config_path = model_dir / "es_MX-claude-high.onnx.json"
+            model_path = model_dir / "es_MX-ald-medium.onnx"
+            config_path = model_dir / "es_MX-ald-medium.onnx.json"
             if model_path.exists():
                 _piper_voice = PiperVoice.load(str(model_path), str(config_path))
                 _log("[TTS] Piper voice loaded")
