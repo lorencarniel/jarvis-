@@ -1444,6 +1444,19 @@ def main():
         _log("[TELEGRAM] Sin token, bot no iniciado. Configurar en Conexiones.")
 
     threading.Timer(1.5, lambda: open_in_chrome(f"http://localhost:{port}")).start()
+
+    # Auto-launch floating widget
+    def _launch_widget():
+        import subprocess
+        widget_path = os.path.join(os.path.dirname(__file__), "widget.pyw")
+        if os.path.exists(widget_path):
+            try:
+                subprocess.Popen(["pythonw", widget_path], creationflags=0x00000008)
+                _log("[WIDGET] Widget flotante iniciado")
+            except Exception as e:
+                _log(f"[WIDGET] No se pudo iniciar: {e}")
+    threading.Timer(3, _launch_widget).start()
+
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
 
 

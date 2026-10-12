@@ -1984,6 +1984,7 @@ def _send_telegram(text):
 
 def _create_presentation(title, slides):
     import urllib.request
+    import subprocess
     try:
         payload = json.dumps({"title": title, "slides": slides}).encode("utf-8")
         req = urllib.request.Request(
@@ -1994,7 +1995,13 @@ def _create_presentation(title, slides):
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         if data.get("success"):
-            return f"Presentacion creada: {title} ({len(slides)} slides). El archivo se puede descargar desde la interfaz. Ruta: {data.get('path', '')}"
+            fpath = data.get("path", "")
+            if fpath and os.path.exists(fpath):
+                try:
+                    os.startfile(fpath)
+                except Exception:
+                    pass
+            return f"Presentacion creada y abierta: {title} ({len(slides)} slides). Ruta: {fpath}"
         return f"Error creando presentacion: {data.get('error', 'desconocido')}"
     except Exception as e:
         return f"Error creando presentacion: {e}"
