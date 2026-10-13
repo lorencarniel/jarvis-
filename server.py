@@ -144,7 +144,18 @@ def api_tts():
     audio_path = Path(__file__).parent / "ui" / "tts_output.mp3"
     wav_path = Path(__file__).parent / "ui" / "tts_output.wav"
 
-    # 1) Piper TTS (neural, local, realistic)
+    # 1) gTTS con acento argentino (confiable, voz correcta)
+    try:
+        from gtts import gTTS
+        tts = gTTS(text, lang="es", tld="com.ar")
+        tts.save(str(audio_path))
+        if audio_path.exists() and audio_path.stat().st_size > 100:
+            _log("[TTS] gTTS argentino OK")
+            return send_from_directory(str(UI_DIR), "tts_output.mp3", mimetype="audio/mpeg")
+    except Exception as e:
+        _log(f"[TTS] gTTS error: {e}")
+
+    # 2) Piper TTS fallback (local, offline)
     piper = _get_piper_voice()
     if piper:
         try:
@@ -165,30 +176,12 @@ def api_tts():
                 str(audio_path)
             ], capture_output=True, timeout=15)
             if audio_path.exists() and audio_path.stat().st_size > 100:
+                _log("[TTS] Piper fallback OK")
                 return send_from_directory(str(UI_DIR), "tts_output.mp3", mimetype="audio/mpeg")
         except Exception as e:
             _log(f"[TTS] Piper error: {e}")
 
-    # 2) Edge TTS fallback
-    try:
-        import asyncio, edge_tts
-        voice = data.get("voice", "es-AR-TomasNeural")
-        async def generate():
-            communicate = edge_tts.Communicate(text, voice, rate="+5%", pitch="-2Hz")
-            await communicate.save(str(audio_path))
-        asyncio.run(generate())
-        return send_from_directory(str(UI_DIR), "tts_output.mp3", mimetype="audio/mpeg")
-    except Exception:
-        pass
-
-    # 3) gTTS fallback
-    try:
-        from gtts import gTTS
-        tts = gTTS(text, lang="es", tld="com.ar")
-        tts.save(str(audio_path))
-        return send_from_directory(str(UI_DIR), "tts_output.mp3", mimetype="audio/mpeg")
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"error": "No TTS engine available"}), 500
 
 
 @app.route("/api/tts/voices", methods=["GET"])
