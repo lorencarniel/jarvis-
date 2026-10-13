@@ -36,10 +36,11 @@ if errorlevel 1 (
 echo.
 echo [3/4] Descargando modelo de voz...
 if not exist "tts_models" mkdir tts_models
-if not exist "tts_models\es_MX-ald-medium.onnx" (
-    echo Descargando modelo de voz ~60MB, espera...
-    curl -L -o "tts_models\es_MX-ald-medium.onnx" "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_MX/ald/medium/es_MX-ald-medium.onnx?download=true"
-    if exist "tts_models\es_MX-ald-medium.onnx" (
+if not exist "tts_models\es_ES-davefx-medium.onnx" (
+    echo Descargando modelo de voz masculina ~60MB, espera...
+    curl -L -o "tts_models\es_ES-davefx-medium.onnx" "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx?download=true"
+    curl -L -o "tts_models\es_ES-davefx-medium.onnx.json" "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx.json?download=true"
+    if exist "tts_models\es_ES-davefx-medium.onnx" (
         echo Modelo descargado OK!
     ) else (
         echo No se pudo descargar el modelo, la voz va a funcionar igual con Google TTS.

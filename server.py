@@ -133,8 +133,8 @@ def _get_piper_voice():
         try:
             from piper import PiperVoice
             model_dir = Path(__file__).parent / "tts_models"
-            model_path = model_dir / "es_MX-ald-medium.onnx"
-            config_path = model_dir / "es_MX-ald-medium.onnx.json"
+            model_path = model_dir / "es_ES-davefx-medium.onnx"
+            config_path = model_dir / "es_ES-davefx-medium.onnx.json"
             if model_path.exists():
                 _piper_voice = PiperVoice.load(str(model_path), str(config_path))
                 _log("[TTS] Piper voice loaded")
@@ -153,22 +153,11 @@ def api_tts():
     audio_path = Path(__file__).parent / "ui" / "tts_output.mp3"
     wav_path = Path(__file__).parent / "ui" / "tts_output.wav"
 
-    # 1) gTTS con acento argentino (confiable, voz correcta)
-    try:
-        from gtts import gTTS
-        tts = gTTS(text, lang="es", tld="com.ar")
-        tts.save(str(audio_path))
-        if audio_path.exists() and audio_path.stat().st_size > 100:
-            _log("[TTS] gTTS argentino OK")
-            return send_from_directory(str(UI_DIR), "tts_output.mp3", mimetype="audio/mpeg")
-    except Exception as e:
-        _log(f"[TTS] gTTS error: {e}")
-
-    # 2) Piper TTS fallback (local, offline)
+    # 1) Piper TTS - voz masculina neural (davefx, offline)
     piper = _get_piper_voice()
     if piper:
         try:
-            import numpy as np, wave, subprocess
+            import numpy as np, wave, subprocess as sp2
             all_audio = []
             for chunk in piper.synthesize(text):
                 all_audio.append(chunk.audio_float_array)
@@ -179,16 +168,27 @@ def api_tts():
                 wf.setsampwidth(2)
                 wf.setframerate(piper.config.sample_rate)
                 wf.writeframes(audio_int16.tobytes())
-            subprocess.run([
+            sp2.run([
                 "ffmpeg", "-y", "-i", str(wav_path),
                 "-ar", "44100", "-ac", "1", "-b:a", "128k",
                 str(audio_path)
             ], capture_output=True, timeout=15)
             if audio_path.exists() and audio_path.stat().st_size > 100:
-                _log("[TTS] Piper fallback OK")
+                _log("[TTS] Piper davefx OK")
                 return send_from_directory(str(UI_DIR), "tts_output.mp3", mimetype="audio/mpeg")
         except Exception as e:
             _log(f"[TTS] Piper error: {e}")
+
+    # 2) gTTS fallback (online, acento argentino)
+    try:
+        from gtts import gTTS
+        tts = gTTS(text, lang="es", tld="com.ar")
+        tts.save(str(audio_path))
+        if audio_path.exists() and audio_path.stat().st_size > 100:
+            _log("[TTS] gTTS fallback OK")
+            return send_from_directory(str(UI_DIR), "tts_output.mp3", mimetype="audio/mpeg")
+    except Exception as e:
+        _log(f"[TTS] gTTS error: {e}")
 
     return jsonify({"error": "No TTS engine available"}), 500
 
