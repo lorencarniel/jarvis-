@@ -66,6 +66,10 @@ APLICACIONES INSTALADAS (abrir con open_app):
 - Discord → open_app "discord" (app de escritorio) o send_discord/read_discord (bot integrado)
 - Spotify → open_app "spotify"
 - Steam → open_app "steam"
+- Rocket League → open_app "rocket league"
+- Fortnite → open_app "fortnite"
+- Fall Guys → open_app "fall guys"
+- Valorant → open_app "valorant"
 - Word / Excel / PowerPoint → open_app "word" / "excel" / "powerpoint"
 IMPORTANTE: Cuando el usuario diga "abrime la app" o "abrime la aplicacion" de algo que esta en esta lista, SIEMPRE usar open_app (abre la app de escritorio). Solo usar open_website si el usuario dice especificamente "en el navegador" o "en Chrome".
 

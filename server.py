@@ -1082,6 +1082,10 @@ APP_PATHS = {
     "cloud code": "uwp:Claude_pzs8sxrjxfjjc!Claude",
     "discord": "start discord:",
     "steam": "start steam:",
+    "rocket league": "epic_launch:Sugar",
+    "fortnite": "epic_launch:Fortnite",
+    "fall guys": "epic_launch:0a2d9f6403244d12969e11da6713137b",
+    "valorant": "riot:valorant",
 }
 
 WEBSITE_SHORTCUTS = {
@@ -1369,12 +1373,19 @@ def execute_actions(actions):
                 open_in_chrome(url)
             elif act == "open_app":
                 app_name = action["app_name"].lower()
+                _log(f"[APP] Intentando abrir: '{app_name}'")
                 cmd = APP_PATHS.get(app_name)
                 if cmd == "whatsapp_web":
                     open_in_chrome("https://web.whatsapp.com")
                 elif cmd and cmd.startswith("uwp:"):
                     app_id = cmd[4:]
                     subprocess.Popen(f'start shell:AppsFolder\\{app_id}', shell=True)
+                elif cmd and cmd.startswith("epic_launch:"):
+                    catalog_id = cmd[12:]
+                    epic_url = f"com.epicgames.launcher://apps/{catalog_id}?action=launch&silent=true"
+                    subprocess.Popen(f'start "" "{epic_url}"', shell=True)
+                elif cmd and cmd.startswith("riot:"):
+                    subprocess.Popen('start "" "C:\\Riot Games\\Riot Client\\RiotClientServices.exe" --launch-product=valorant --launch-patchline=live', shell=True)
                 elif cmd:
                     subprocess.Popen(cmd, shell=True)
                 elif app_name in WEBSITE_SHORTCUTS:
@@ -1403,15 +1414,17 @@ def execute_actions(actions):
                                         break
                         found = best
                     if found:
+                        _log(f"[APP] Encontrado: {found}")
                         try:
                             os.startfile(found)
                         except Exception:
                             subprocess.Popen(f'start "" "{found}"', shell=True)
                     else:
+                        _log(f"[APP] No encontrado: '{app_name}', intentando start directo")
                         try:
                             subprocess.Popen(f'start "" "{app_name}"', shell=True)
                         except Exception:
-                            print(f"No se pudo abrir app: {app_name}")
+                            _log(f"[APP] No se pudo abrir: {app_name}")
             elif act == "system_notify":
                 send_notification(action["title"], action["message"])
             elif act == "send_email":
